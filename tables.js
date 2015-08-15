@@ -42,7 +42,7 @@ var personengruppeModel = ctx.createDataModel({
 var geschaeftspartnerModel = ctx.createDataModel({
     name: "GESCHAEFTSPARTNER_ST",
     columns: [
-        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "Id", dataType: dl.DataTypes.int, isPrimaryKey: true },
         { name: "CodeGpKz", dataType: dl.DataTypes.text, relation: { parentTable: gpKzModel.tableInfo.table, parentAssociationName: "Geschaeftspartner", childAssociationName: "GpKz" } },
         { name: "Firmenbez1", dataType: dl.DataTypes.text },
         { name: "Firmenbez2", dataType: dl.DataTypes.text },
@@ -56,11 +56,11 @@ var geschaeftspartnerModel = ctx.createDataModel({
         { name: "Email", dataType: dl.DataTypes.text },
         { name: "Homepage", dataType: dl.DataTypes.text }
     ]
-}, baseModelId);
+});
 var personModel = ctx.createDataModel({
     name: "PERSONEN_ST",
     columns: [
-        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "Id", dataType: dl.DataTypes.int, isPrimaryKey: true },
         { name: "IdGeschaeftspartner", dataType: dl.DataTypes.int, relation: { parentTable: geschaeftspartnerModel.tableInfo.table, parentAssociationName: "Personen", childAssociationName: "Geschaeftspartner" } },
         { name: "CodePersonengruppe", dataType: dl.DataTypes.text, relation: { parentTable: personengruppeModel.tableInfo.table, parentAssociationName: "Personen", childAssociationName: "Personengruppe" } },
         { name: "CodeAnrede", dataType: dl.DataTypes.text, relation: { parentTable: anredeModel.tableInfo.table, parentAssociationName: "Personen", childAssociationName: "Anrede" } },
@@ -73,7 +73,7 @@ var personModel = ctx.createDataModel({
         { name: "Email", dataType: dl.DataTypes.text },
         { name: "Geburtsdatum", dataType: dl.DataTypes.date }
     ]
-}, baseModelId);
+});
 var besuchstypModel = ctx.createDataModel({
     name: "BESUCHSTYPEN_ST",
     columns: [
@@ -184,6 +184,7 @@ module.exports = {
     tourPlanModel: tourPlanModel,
     besuchPlanModel: besuchPlanModel,
     besuchModel: besuchModel,
-    berichtModel: berichtModel
+    berichtModel: berichtModel,
+    syncCtx: syncCtx
 };
 //# sourceMappingURL=tables.js.map

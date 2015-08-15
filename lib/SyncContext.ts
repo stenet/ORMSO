@@ -42,6 +42,8 @@ interface IDataModelSync {
 }
 export class SyncContext {
     private _dataModelSyncs: IDataModelSync[] = [];
+    private _isSyncActiveAll: boolean = false;
+    private _isSyncActive: boolean = false;
 
     constructor() {
     }
@@ -64,7 +66,16 @@ export class SyncContext {
         this.alterTable(dataModel);
     }
 
+    isSyncActive(): boolean {
+        return this._isSyncActive || this._isSyncActiveAll;
+    }
     sync(dataModel: dc.DataModel): q.Promise<any> {
+        if (this._isSyncActive) {
+            throw Error("Sync already started");
+        }
+
+        this._isSyncActive = true;
+
         var dataModelSync = this.getDataModelSync(dataModel);
 
         if (!dataModelSync) {
@@ -84,12 +95,26 @@ export class SyncContext {
             })
             .then((): q.Promise<any> => {
                 return this.saveSyncState(dataModelSync, syncStart);
+            })
+            .then((): q.Promise<any> => {
+                this._isSyncActive = false;
+                return q.resolve(null);
             });
     }
     syncAll(): q.Promise<any> {
+        if (this._isSyncActiveAll) {
+            throw Error("Sync already started");
+        }
+
+        this._isSyncActiveAll = true;
+
         return h.Helpers.qSequential(this._dataModelSyncs, (item: IDataModelSync) => {
             return this.sync(item.dataModel);
-        });
+        })
+            .then((): q.Promise<any> => {
+                this._isSyncActiveAll = false;
+                return q.resolve(null);
+            });
     }
 
     private alterTable(dataModel: dc.DataModel): void {

@@ -9,6 +9,7 @@ var pubCtx = new p.PublishContext();
 pubCtx.addDataModel("Geschaeftspartner", t.geschaeftspartnerModel);
 pubCtx.addDataModel("Person", t.personModel);
 pubCtx.addDataModel("Besuch", t.besuchModel);
+pubCtx.addSyncContext("Sync", t.syncCtx);
 var app = express();
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "jade");
