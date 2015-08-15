@@ -2,7 +2,9 @@
 import dl = require("../lib/DataLayer");
 import dc = require("../lib/DataContext");
 
-fs.unlinkSync("test.db");
+if (fs.existsSync("test.db")) {
+    fs.unlinkSync("test.db");
+}
 
 var sqlite3 = new dl.Sqlite3DataLayer("test.db");
 var dataCtx = new dc.DataContext(sqlite3);

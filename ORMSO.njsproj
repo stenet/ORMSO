@@ -12,7 +12,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>3be4e2e3-6b18-4101-b80d-955157bd066c</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>app.ts</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <StartWebBrowser>True</StartWebBrowser>
     <SearchPath>
     </SearchPath>
@@ -35,11 +36,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="tsd.json" />
-    <Content Include="views\error.jade" />
-    <Content Include="views\index.jade" />
-    <Content Include="views\layout.jade" />
-    <TypeScriptCompile Include="app.ts" />
-    <TypeScriptCompile Include="tables.ts" />
     <TypeScriptCompile Include="lib\DataContext.ts" />
     <TypeScriptCompile Include="lib\DataLayer.ts" />
     <TypeScriptCompile Include="lib\Helpers.ts" />
@@ -48,7 +44,7 @@
     <TypeScriptCompile Include="lib\PublishContext.ts" />
     <TypeScriptCompile Include="lib\SyncContext.ts" />
     <TypeScriptCompile Include="test\test.ts" />
-    <TypeScriptCompile Include="test\testclasses.ts" />
+    <TypeScriptCompile Include="test\models.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular-sanitize.d.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular.d.ts" />
     <TypeScriptCompile Include="typings\body-parser\body-parser.d.ts" />
@@ -74,8 +70,6 @@
     <Folder Include="lib\" />
     <Folder Include="test\" />
     <Folder Include="typings\mocha\" />
-    <Folder Include="views\" />
-    <Folder Include="public\" />
     <Folder Include="typings\" />
     <Folder Include="typings\angularjs\" />
     <Folder Include="typings\body-parser\" />
