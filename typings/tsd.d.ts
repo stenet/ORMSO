@@ -16,3 +16,5 @@
 /// <reference path="request/request.d.ts" />
 /// <reference path="serve-favicon/serve-favicon.d.ts" />
 /// <reference path="sqlite3/sqlite3.d.ts" />
+/// <reference path="mocha/mocha.d.ts" />
+/// <reference path="chai/chai.d.ts" />

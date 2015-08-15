@@ -22,7 +22,7 @@ var syncModel = ctx.createDataModel({
 })
 var finalizeThen = ctx.finalizeInitialize()
     .then((): q.Promise<any> => {
-        console.log("Ctx sync finalize done");
+        console.log("Initialize for synchronisation models done");
         return q.resolve(null);
     })
     .catch((r): void => {

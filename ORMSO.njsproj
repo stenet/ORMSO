@@ -47,6 +47,8 @@
     <Content Include="README.md" />
     <TypeScriptCompile Include="lib\PublishContext.ts" />
     <TypeScriptCompile Include="lib\SyncContext.ts" />
+    <TypeScriptCompile Include="test\test.ts" />
+    <TypeScriptCompile Include="test\testclasses.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular-sanitize.d.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular.d.ts" />
     <TypeScriptCompile Include="typings\body-parser\body-parser.d.ts" />
@@ -56,6 +58,7 @@
     <TypeScriptCompile Include="typings\form-data\form-data.d.ts" />
     <TypeScriptCompile Include="typings\jquery\jquery.d.ts" />
     <TypeScriptCompile Include="typings\mime\mime.d.ts" />
+    <TypeScriptCompile Include="typings\mocha\mocha.d.ts" />
     <TypeScriptCompile Include="typings\moment\moment-node.d.ts" />
     <TypeScriptCompile Include="typings\moment\moment.d.ts" />
     <TypeScriptCompile Include="typings\morgan\morgan.d.ts" />
@@ -69,6 +72,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="lib\" />
+    <Folder Include="test\" />
+    <Folder Include="typings\mocha\" />
     <Folder Include="views\" />
     <Folder Include="public\" />
     <Folder Include="typings\" />
