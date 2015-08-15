@@ -1,0 +1,26 @@
+{
+  "name": "CRM",
+  "version": "0.0.0",
+  "description": "CRM",
+  "main": "app.js",
+  "author": {
+    "name": "stefan",
+    "email": "stefan.heim@hotmail.com"
+  },
+  "dependencies": {
+    "angular": "^1.4.4",
+    "angular-sanitize": "^1.4.4",
+    "body-parser": "^1.13.3",
+    "cookie-parser": "^1.3.5",
+    "debug": "^2.2.0",
+    "express": "^4.13.3",
+    "jade": "^1.11.0",
+    "jquery": "^2.1.4",
+    "moment": "^2.10.6",
+    "morgan": "^1.6.1",
+    "q": "^1.4.1",
+    "request": "^2.60.0",
+    "serve-favicon": "^2.3.0",
+    "sqlite3": "^3.0.10"
+  }
+}
