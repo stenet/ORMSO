@@ -36,6 +36,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="tsd.json" />
+    <TypeScriptCompile Include="index.ts" />
     <TypeScriptCompile Include="lib\DataContext.ts" />
     <TypeScriptCompile Include="lib\DataLayer.ts" />
     <TypeScriptCompile Include="lib\Helpers.ts" />

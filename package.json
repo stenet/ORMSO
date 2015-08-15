@@ -1,8 +1,8 @@
 {
   "name": "ormso",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "JavaScript object mapper to database (currently Sqlite3), sync with other database and publish for clients.",
-  "main": "app.js",
+  "main": "index.js",
   "author": {
     "name": "stefan",
     "email": "stefan.heim@hotmail.com"
