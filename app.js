@@ -22,7 +22,7 @@ var landModel = ctx.createDataModel({
     columns: [
         { name: "Code", dataType: dl.DataTypes.text, isPrimaryKey: true },
         { name: "Bezeichnung", dataType: dl.DataTypes.text },
-        { name: "IsE", dataType: dl.DataTypes.bool }
+        { name: "IsEU", dataType: dl.DataTypes.bool }
     ]
 });
 var anredeModel = ctx.createDataModel({
@@ -95,8 +95,7 @@ var besuchPlanModel = ctx.createDataModel({
     columns: [
         { name: "Id", dataType: dl.DataTypes.int },
         { name: "IdTourPlan", dataType: dl.DataTypes.int, relation: { parentTable: tourPlanModel.tableInfo.table, parentAssociationName: "BesuchePlan", childAssociationName: "TourPlan" } },
-        { name: "Von", dataType: dl.DataTypes.date },
-        { name: "Bis", dataType: dl.DataTypes.date },
+        { name: "IdGeschaeftspartner", dataType: dl.DataTypes.int, relation: { parentTable: geschaeftspartnerModel.tableInfo.table, parentAssociationName: "BesuchePlan", childAssociationName: "Geschaeftspartner" } },
         { name: "Status", dataType: dl.DataTypes.int }
     ]
 }, baseModelId);
@@ -105,7 +104,7 @@ var besuchModel = ctx.createDataModel({
     columns: [
         { name: "Id", dataType: dl.DataTypes.int },
         { name: "IdBesuchstyp", dataType: dl.DataTypes.int, relation: { parentTable: besuchstypModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "Besuchstyp" } },
-        { name: "IdGeschaftspartner", dataType: dl.DataTypes.int, relation: { parentTable: geschaeftspartnerModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "Geschaeftspartner" } },
+        { name: "IdGeschaeftspartner", dataType: dl.DataTypes.int, relation: { parentTable: geschaeftspartnerModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "Geschaeftspartner" } },
         { name: "IdBesuchPlan", dataType: dl.DataTypes.int, relation: { parentTable: besuchPlanModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "BesuchPlan" } },
         { name: "Von", dataType: dl.DataTypes.date },
         { name: "Bis", dataType: dl.DataTypes.date }
