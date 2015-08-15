@@ -17,19 +17,7 @@ export interface ITable {
     /** List of column inside this table */
     columns: IColumn[],
     /** is abstract table */
-    isAbstract?: boolean,
-    /** Executed before insert */
-    beforeInsertCallback?: (item: any) => q.Promise<any>;
-    /** Executed after insert */
-    afterInsertCallback?: (item: any) => q.Promise<any>;
-    /** Executed before update */
-    beforeUpdateCallback?: (item: any) => q.Promise<any>;
-    /** Executed after update */
-    afterUpdateCallback?: (item: any) => q.Promise<any>;
-    /** Executed before delete */
-    beforeDeleteCallback?: (item: any) => q.Promise<any>;
-    /** Executed after delete */
-    afterDeleteCallback?: (item: any) => q.Promise<any>;
+    isAbstract?: boolean
 }
 export interface ITableInfo {
     table: ITable;
@@ -217,7 +205,14 @@ export class Sqlite3DataLayer implements IDataLayer {
             + " "
             + this.getSelectTake(selectOptions);
 
-        return this.executeQuery(statement, parameters);
+        return this.executeQuery(statement, parameters)
+            .then((r): q.Promise<any> => {
+                r.forEach((row): void => {
+                    this.validateAfterReadFromStore(tableInfo.table, row);
+                });
+
+                return q.resolve(r);
+            });
     }
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any> {
         return this.select(tableInfo, {
@@ -495,7 +490,7 @@ export class Sqlite3DataLayer implements IDataLayer {
         var count = Object.keys(parameters).length + 1;
         var parameterName = "$" + count;
 
-        parameters[parameterName] = this.convertValue(table, this.getColumn(table, columnName), val);
+        parameters[parameterName] = this.convertToStorage(table, this.getColumn(table, columnName), val);
 
         return parameterName;
     }
@@ -504,20 +499,31 @@ export class Sqlite3DataLayer implements IDataLayer {
         table.columns.forEach((column): void => {
             var val = item[column.name];
 
-            if (!val && column.defaultValue) {
+            if (val == null && column.defaultValue != null) {
                 val = column.defaultValue;
             }
 
-            if (!val) {
+            if (val == null) {
                 return;
             }
 
-            item[column.name] = this.convertValue(table, column, val);
+            item[column.name] = this.convertToStorage(table, column, val);
         });
     }
-    private convertValue(table: ITable, column: IColumn, val: any): any {
-        if (!val) {
-            return val;
+    private validateAfterReadFromStore(table: ITable, item: any): void {
+        table.columns.forEach((column): void => {
+            var val = item[column.name];
+
+            if (val == null) {
+                return;
+            }
+
+            item[column.name] = this.convertFromStorage(table, column, val);
+        });
+    }
+    private convertToStorage(table: ITable, column: IColumn, val: any): any {
+        if (val == null) {
+            return;
         }
 
         switch (column.dataType) {
@@ -525,6 +531,26 @@ export class Sqlite3DataLayer implements IDataLayer {
                 return val ? 1 : 0;
             case DataTypes.date:
                 return moment(val).format();
+            case DataTypes.float:
+                return parseFloat(val);
+            case DataTypes.int:
+                return parseInt(val);
+            default:
+                break;
+        }
+
+        return val;
+    }
+    private convertFromStorage(table: ITable, column: IColumn, val: any): any {
+        if (val == null) {
+            return;
+        }
+
+        switch (column.dataType) {
+            case DataTypes.bool:
+                return val ? true : false;
+            case DataTypes.date:
+                return moment(val).toDate();
             case DataTypes.float:
                 return parseFloat(val);
             case DataTypes.int:

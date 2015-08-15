@@ -61,7 +61,7 @@ export class SyncContext {
             syncOptions: syncOptions
         });
 
-
+        this.alterTable(dataModel);
     }
 
     sync(dataModel: dc.DataModel): q.Promise<any> {
@@ -105,6 +105,9 @@ export class SyncContext {
         });
 
         dataModel.appendFixedWhere([ColMarkedAsDelete, false]);
+        
+        dataModel.onBeforeInsert(this.checkSyncState);
+        dataModel.onBeforeUpdate(this.checkSyncState);
     }
 
     private getDataModelSync(dataModel: dc.DataModel): IDataModelSync {
@@ -165,11 +168,17 @@ export class SyncContext {
                 where: where
             })
                 .then((r): q.Promise<any> => {
+                    row._isSyncActive = true;
+
                     if (r.length === 1) {
                         return dataModelSync.dataModel.updateItems(row, where);
                     } else {
                         return dataModelSync.dataModel.insert(row);
                     }
+                })
+                .then((): q.Promise<any> => {
+                    delete row._isSyncActive;
+                    return q.resolve(null);
                 });
         });
     }
@@ -192,5 +201,14 @@ export class SyncContext {
                     return syncModel.insert(item);
                 }
             })
+    }
+    private checkSyncState(item: any): q.Promise<any> {
+        if (item._isSyncActive) {
+            item[ColDoSync] = false;
+        } else {
+            item[ColDoSync] = true;
+        }
+
+        return q.resolve(null);
     }
 }
