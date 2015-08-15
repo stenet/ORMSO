@@ -201,9 +201,9 @@ export class Sqlite3DataLayer implements IDataLayer {
             + " "
             + this.getSelectOrderBy(selectOptions)
             + " "
-            + this.getSelectSkip(selectOptions)
+            + this.getSelectTake(selectOptions)
             + " "
-            + this.getSelectTake(selectOptions);
+            + this.getSelectSkip(selectOptions);
 
         return this.executeQuery(statement, parameters)
             .then((r): q.Promise<any> => {
@@ -408,19 +408,19 @@ export class Sqlite3DataLayer implements IDataLayer {
                 throw Error(sort + " not implemented");
         }
     }
-    private getSelectSkip(selectOptions?: ISelectOptions): string {
-        if (!selectOptions || !selectOptions.skip) {
-            return "";
-        }
-
-        return "offset " + selectOptions.skip;
-    }
     private getSelectTake(selectOptions?: ISelectOptions): string {
         if (!selectOptions || !selectOptions.take) {
             return "";
         }
 
         return "limit " + selectOptions.take;
+    }
+    private getSelectSkip(selectOptions?: ISelectOptions): string {
+        if (!selectOptions || !selectOptions.skip) {
+            return "";
+        }
+
+        return "offset " + selectOptions.skip;
     }
     private getSelectWhereComponent(table: ITable, parameters: any, where: any): string {
         var elements = [];
