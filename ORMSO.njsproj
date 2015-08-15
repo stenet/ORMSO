@@ -41,6 +41,7 @@
     <TypeScriptCompile Include="lib\Helpers.ts" />
     <Content Include="package.json" />
     <Content Include="README.md" />
+    <TypeScriptCompile Include="lib\SyncContext.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular-sanitize.d.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular.d.ts" />
     <TypeScriptCompile Include="typings\body-parser\body-parser.d.ts" />

@@ -1,116 +1,218 @@
 ﻿import dc = require("./lib/DataContext");
 import dl = require("./lib/DataLayer");
+import sc = require("./lib/SyncContext");
 import q = require("q");
+
+var serverUrl = "http://10.20.50.53/TIP/api/DM360/";
 
 var ctx = new dc.DataContext(new dl.Sqlite3DataLayer("test.db"));
 
-var incrementLock = (item): q.Promise<any> => {
-    return q.fcall((): void => {
-        item.Locking = (item.Locking ? item.Locking + 1 : 1);
-    });
-};
-
-var locks = ctx.createDataModel({
-    name: "locks",
-    isAbstract: true,
-    columns: [
-        { name: "Locking", dataType: dl.DataTypes.int }
-    ],
-    beforeInsertCallback: incrementLock,
-    beforeUpdateCallback: incrementLock
-})
-var users = ctx.createDataModel({
-    name: "users",
-    columns: [
-        { name: "Id", dataType: dl.DataTypes.int, isAutoIncrement: true, isPrimaryKey: true },
-        { name: "FirstName", dataType: dl.DataTypes.text },
-        { name: "LastName", dataType: dl.DataTypes.text },
-        { name: "Email", dataType: dl.DataTypes.text },
-        { name: "FullName", dataType: dl.DataTypes.text }
-    ],
-    beforeInsertCallback: (item): q.Promise<any> => {
-        return q.fcall(() => {
-            item.FullName = item.FirstName + " " + item.LastName;
-        });
-    }
-}, locks);
-
-var master = ctx.createDataModel({
+var baseModelId = ctx.createDataModel({
     name: "Master",
     isAbstract: true,
     columns: [
-        { name: "Id", dataType: dl.DataTypes.int, isPrimaryKey: true, isAutoIncrement: true }
+        { name: "IdClient", dataType: dl.DataTypes.int, isPrimaryKey: true, isAutoIncrement: true }
     ]
 });
-var besuche = ctx.createDataModel({
-    name: "Besuche",
+
+var gpKzModel = ctx.createDataModel({
+    name: "GPKZ_ST",
     columns: [
+        { name: "Code", dataType: dl.DataTypes.text, isPrimaryKey: true },
+        { name: "Bezeichnung", dataType: dl.DataTypes.text }
+    ]
+});
+var landModel = ctx.createDataModel({
+    name: "LAENDER_ST",
+    columns: [
+        { name: "Code", dataType: dl.DataTypes.text, isPrimaryKey: true },
+        { name: "Bezeichnung", dataType: dl.DataTypes.text },
+        { name: "IsE", dataType: dl.DataTypes.bool }
+    ]
+});
+var anredeModel = ctx.createDataModel({
+    name: "ANREDEN_ST",
+    columns: [
+        { name: "Code", dataType: dl.DataTypes.text, isPrimaryKey: true },
+        { name: "Bezeichnung", dataType: dl.DataTypes.text }
+    ]
+});
+var personengruppeModel = ctx.createDataModel({
+    name: "PERSONENGRUPPEN_ST",
+    columns: [
+        { name: "Code", dataType: dl.DataTypes.text, isPrimaryKey: true },
+        { name: "Bezeichnung", dataType: dl.DataTypes.text }
+    ]
+});
+var geschaeftspartnerModel = ctx.createDataModel({
+    name: "GESCHAEFTSPARTNER_ST",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "CodeGpKz", dataType: dl.DataTypes.text, relation: { parentTable: gpKzModel.tableInfo.table, parentAssociationName: "Geschaeftspartner", childAssociationName: "GpKz" } },
+        { name: "Firmenbez1", dataType: dl.DataTypes.text },
+        { name: "Firmenbez2", dataType: dl.DataTypes.text },
+        { name: "Firmenbez3", dataType: dl.DataTypes.text },
+        { name: "Strasse", dataType: dl.DataTypes.text },
+        { name: "CodeLand", dataType: dl.DataTypes.text, relation: { parentTable: landModel.tableInfo.table, parentAssociationName: "Geschaeftspartner", childAssociationName: "Land" } },
+        { name: "Plz", dataType: dl.DataTypes.text },
+        { name: "Ort", dataType: dl.DataTypes.text },
+        { name: "Telefon", dataType: dl.DataTypes.text },
+        { name: "Fax", dataType: dl.DataTypes.text },
+        { name: "Email", dataType: dl.DataTypes.text },
+        { name: "Homepage", dataType: dl.DataTypes.text }
+    ]
+}, baseModelId);
+var personModel = ctx.createDataModel({
+    name: "PERSONEN_ST",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "IdGeschaeftspartner", dataType: dl.DataTypes.int, relation: { parentTable: geschaeftspartnerModel.tableInfo.table, parentAssociationName: "Personen", childAssociationName: "Geschaeftspartner" } },
+        { name: "CodePersonengruppe", dataType: dl.DataTypes.text, relation: { parentTable: personengruppeModel.tableInfo.table, parentAssociationName: "Personen", childAssociationName: "Personengruppe" } },
+        { name: "CodeAnrede", dataType: dl.DataTypes.text, relation: { parentTable: anredeModel.tableInfo.table, parentAssociationName: "Personen", childAssociationName: "Anrede" } },
+        { name: "Titel", dataType: dl.DataTypes.text },
+        { name: "Vorname", dataType: dl.DataTypes.text },
+        { name: "Nachname", dataType: dl.DataTypes.text },
+        { name: "Telefon", dataType: dl.DataTypes.text },
+        { name: "Mobil", dataType: dl.DataTypes.text },
+        { name: "Fax", dataType: dl.DataTypes.text },
+        { name: "Email", dataType: dl.DataTypes.text },
+        { name: "Geburtsdatum", dataType: dl.DataTypes.date }
+    ]
+}, baseModelId);
+
+var besuchstypModel = ctx.createDataModel({
+    name: "BESUCHSTYPEN_ST",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int, isPrimaryKey: true },
+        { name: "Bezeichnung", dataType: dl.DataTypes.text }
+    ]
+});
+var tourPlanModel = ctx.createDataModel({
+    name: "TOUREN_PLAN",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int },
         { name: "Von", dataType: dl.DataTypes.date },
         { name: "Bis", dataType: dl.DataTypes.date },
+        { name: "TourName", dataType: dl.DataTypes.text }
+    ]
+}, baseModelId);
+var besuchPlanModel = ctx.createDataModel({
+    name: "BESUCHE_PLAN",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "IdTourPlan", dataType: dl.DataTypes.int, relation: { parentTable: tourPlanModel.tableInfo.table, parentAssociationName: "BesuchePlan", childAssociationName: "TourPlan" } },
+        { name: "Von", dataType: dl.DataTypes.date },
+        { name: "Bis", dataType: dl.DataTypes.date },
+        { name: "Status", dataType: dl.DataTypes.int }
+    ]
+}, baseModelId);
+var besuchModel = ctx.createDataModel({
+    name: "BESUCHE",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "IdBesuchstyp", dataType: dl.DataTypes.int, relation: { parentTable: besuchstypModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "Besuchstyp" } },
+        { name: "IdGeschaftspartner", dataType: dl.DataTypes.int, relation: { parentTable: geschaeftspartnerModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "Geschaeftspartner" } },
+        { name: "IdBesuchPlan", dataType: dl.DataTypes.int, relation: { parentTable: besuchPlanModel.tableInfo.table, parentAssociationName: "Besuche", childAssociationName: "BesuchPlan" } },
+        { name: "Von", dataType: dl.DataTypes.date },
+        { name: "Bis", dataType: dl.DataTypes.date }
+    ]
+}, baseModelId);
+var berichtModel = ctx.createDataModel({
+    name: "BERICHTE",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int },
+        { name: "IdBesuch", dataType: dl.DataTypes.int, relation: { parentTable: besuchModel.tableInfo.table, parentAssociationName: "Berichte", childAssociationName: "Besuch" } },
+        { name: "Titel", dataType: dl.DataTypes.text },
         { name: "Text", dataType: dl.DataTypes.text }
     ]
-}, master);
-var berichte = ctx.createDataModel({
-    name: "Berichte",
-    columns: [
-        { name: "Text", dataType: dl.DataTypes.text },
-        { name: "IdBesuch", dataType: dl.DataTypes.int, relation: { parentTable: besuche.tableInfo.table, parentAssociationName: "Besuch", childAssociationName: "Berichte" } }
-    ]
-}, master);
+}, baseModelId);
+
+var syncCtx = new sc.SyncContext();
+
+syncCtx.addDataModel(
+    gpKzModel,
+    {
+        loadUrl: serverUrl + "Stammdaten/GpKz",
+        serverPrimaryKey: gpKzModel.getColumn("Code")
+    });
+
+syncCtx.addDataModel(
+    landModel,
+    {
+        loadUrl: serverUrl + "Stammdaten/Land",
+        serverPrimaryKey: landModel.getColumn("Code")
+    });
+
+syncCtx.addDataModel(
+    anredeModel,
+    {
+        loadUrl: serverUrl + "Stammdaten/Anrede",
+        serverPrimaryKey: anredeModel.getColumn("Code")
+    });
+
+syncCtx.addDataModel(
+    personengruppeModel,
+    {
+        loadUrl: serverUrl + "Stammdaten/Personengruppe",
+        serverPrimaryKey: personengruppeModel.getColumn("Code")
+    });
+
+syncCtx.addDataModel(
+    geschaeftspartnerModel,
+    {
+        loadUrl: serverUrl + "Stammdaten/Geschaeftspartner",
+        serverPrimaryKey: geschaeftspartnerModel.getColumn("Id")
+    });
+
+syncCtx.addDataModel(
+    personModel,
+    {
+        loadUrl: serverUrl + "Stammdaten/Person",
+        serverPrimaryKey: personModel.getColumn("Id")
+    });
+
+syncCtx.addDataModel(
+    besuchstypModel,
+    {
+        loadUrl: serverUrl + "Vertreter/Besuchstyp",
+        serverPrimaryKey: besuchstypModel.getColumn("Id")
+    });
+
+syncCtx.addDataModel(
+    tourPlanModel,
+    {
+        loadUrl: serverUrl + "Vertreter/TourPlan",
+        serverPrimaryKey: tourPlanModel.getColumn("Id")
+    });
+
+syncCtx.addDataModel(
+    besuchPlanModel,
+    {
+        loadUrl: serverUrl + "Vertreter/BesuchPlan",
+        serverPrimaryKey: besuchPlanModel.getColumn("Id")
+    });
+
+syncCtx.addDataModel(
+    besuchModel,
+    {
+        loadUrl: serverUrl + "Vertreter/Besuch",
+        serverPrimaryKey: besuchModel.getColumn("Id")
+    });
+
+syncCtx.addDataModel(
+    berichtModel,
+    {
+        loadUrl: serverUrl + "Vertreter/Bericht",
+        serverPrimaryKey: berichtModel.getColumn("Id")
+    });
 
 ctx.finalizeInitialize()
     .then((): q.Promise<any> => {
-        console.log("Schema updated");
-
-        return users.insertAndSelect({
-            FirstName: "Stefan",
-            LastName: "Heim",
-            Email: "stefan.heim@hotmail.com"
-        });
+        console.log("Finalize done");
+        return syncCtx.syncAll();
     })
-    .then((r): q.Promise<any> => {
-        console.log("Item inserted");
-        r.FirstName = "Stefan NEU";
-        return users.updateAndSelect(r);
-    })
-    .then((r): q.Promise<any> => {
-        console.log("Item updated");
-        return users.delete(r);
-    })
-    .then((r): q.Promise<any> => {
-        return besuche.insertAndSelect({
-            Von: new Date(),
-            Bis: new Date(),
-            Text: "Das ist ein Test"
-        })
-    })
-    .then((r): q.Promise<any> => {
-        return berichte.insertAndSelect({
-            Text: "Das ist ein Test",
-            IdBesuch: r.Id
-        })
-    })
-    .then((r): q.Promise<any> => {
-        console.log("Item deleted");
-        return besuche.select({
-            expand: ["Berichte"]
-        })
-    })
-    .then((r): q.Promise<any> => {
-        return besuche.updateOrInsert({
-            Von: new Date(),
-            Bis: new Date(),
-            Text: "Spezial",
-            Berichte: [
-                { Text: "Spezial 1" },
-                { Text: "Spezial 2" },
-                { Text: "Spezial 3" }
-            ]
-        });
-    })
-    .then((r): void => {
-        console.log(JSON.stringify(r, null, 2));
-        console.log("All Tasks done");
+    .then((): void => {
+        console.log("Sync done");
     })
     .catch((r): void => {
         console.log(r);

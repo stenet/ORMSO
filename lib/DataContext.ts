@@ -4,6 +4,7 @@ import q = require("q");
 
 export class DataContext {
     private _dataModels: DataModel[] = [];
+    private _hasFinalizeDone: boolean = false;
 
     constructor(public dataLayer: dl.IDataLayer) {
 
@@ -17,10 +18,7 @@ export class DataContext {
         this.validateTable(table);
 
         var dataModel = new DataModel(this, this.createTableInfo(table, baseModel));
-
-        if (table.isAbstract !== true) {
-            this._dataModels.push(dataModel);
-        }
+        this._dataModels.push(dataModel);
 
         return dataModel;
     }
@@ -37,22 +35,78 @@ export class DataContext {
     }
 
     finalizeInitialize(): q.Promise<any> {
+        if (this._hasFinalizeDone) {
+            throw Error("Finalize should be executed only once");
+        }
+
+        this._hasFinalizeDone = true;
+
         return this.updateSchema()
             .then((): q.Promise<any> => {
                 return this.addRelationInfoToTableInfo();
             });
     }
+    hasFinalizeDone(): boolean {
+        return this._hasFinalizeDone;
+    }
 
-    private updateSchema(): q.Promise<any> {
-        return h.Helpers
-            .qSequential(this._dataModels, (dataModel: DataModel) => {
-                return this.dataLayer.updateSchema(dataModel.tableInfo.table);
+    private addRelationInfoToTableInfo(): q.Promise<any> {
+        this.getNonAbstractDataModels().forEach((dataModel): void => {
+            var table = dataModel.tableInfo.table;
+
+            table.columns.forEach((column): void => {
+                if (!column.relation) {
+                    return;
+                }
+
+                var parentDataModel = this.getDataModel(column.relation.parentTable);
+
+                var relationInfo: dl.IRelationInfo = {
+                    parentTableInfo: parentDataModel.tableInfo,
+                    parentPrimaryKey: parentDataModel.tableInfo.primaryKey,
+                    parentAssociationName: column.relation.parentAssociationName,
+                    childTableInfo: dataModel.tableInfo,
+                    childColumn: column,
+                    childAssociationName: column.relation.childAssociationName
+                };
+
+                dataModel.tableInfo.relationsToParent.push(relationInfo);
+                parentDataModel.tableInfo.relationsToChild.push(relationInfo);
             });
+        });
+
+        return q.resolve(null);
+    }
+    private createTableInfo(table: dl.ITable, baseModel?: DataModel): dl.ITableInfo {
+        var primaryKey = table.columns.filter((column): boolean => {
+            return column.isPrimaryKey === true;
+        });
+
+        var tableInfo: dl.ITableInfo = {
+            table: table,
+            primaryKey: primaryKey[0],
+            baseTableInfo: (baseModel ? baseModel.tableInfo : null),
+            relationsToChild: [],
+            relationsToParent: []
+        };
+
+        return tableInfo;
+    }
+    private getNonAbstractDataModels(): DataModel[]{
+        return this._dataModels.filter((dataModel): boolean => {
+            return dataModel.tableInfo.table.isAbstract !== true;
+        });
     }
     private inheritTableFromBaseModel(table: dl.ITable, baseModel: DataModel): void {
         (baseModel).tableInfo.table.columns
             .forEach((column): void => {
                 table.columns.push(column);
+            });
+    }
+    private updateSchema(): q.Promise<any> {
+        return h.Helpers
+            .qSequential(this.getNonAbstractDataModels(), (dataModel: DataModel) => {
+                return this.dataLayer.updateSchema(dataModel.tableInfo.table);
             });
     }
     private validateTable(table: dl.ITable): void {
@@ -89,54 +143,13 @@ export class DataContext {
             table.afterDeleteCallback = dummyCallback;
         }
     }
-    private createTableInfo(table: dl.ITable, baseModel?: DataModel): dl.ITableInfo {
-        var primaryKey = table.columns.filter((column): boolean => {
-            return column.isPrimaryKey === true;
-        });
-
-        var tableInfo: dl.ITableInfo = {
-            table: table,
-            primaryKey: primaryKey[0],
-            baseTableInfo: (baseModel ? baseModel.tableInfo : null),
-            relationsToChild: [],
-            relationsToParent: []
-        };
-
-        return tableInfo;
-    }
-    private addRelationInfoToTableInfo(): q.Promise<any> {
-        this._dataModels.forEach((dataModel): void => {
-            var table = dataModel.tableInfo.table;
-
-            table.columns.forEach((column): void => {
-                if (!column.relation) {
-                    return;
-                }
-
-                var parentDataModel = this.getDataModel(column.relation.parentTable);
-
-                var relationInfo: dl.IRelationInfo = {
-                    parentTableInfo: parentDataModel.tableInfo,
-                    parentPrimaryKey: parentDataModel.tableInfo.primaryKey,
-                    parentAssociationName: column.relation.parentAssociationName,
-                    childTableInfo: dataModel.tableInfo,
-                    childColumn: column,
-                    childAssociationName: column.relation.childAssociationName
-                };
-
-                dataModel.tableInfo.relationsToParent.push(relationInfo);
-                parentDataModel.tableInfo.relationsToChild.push(relationInfo);
-            });
-        }); 
-        
-        return q.resolve(null);       
-    }
 }
 
 export class DataModel {
     private _dataLayer: dl.IDataLayer;
+    private _fixedWhere: any[] = [];
 
-    constructor(private dataContext: DataContext, public tableInfo: dl.ITableInfo) {
+    constructor(public dataContext: DataContext, public tableInfo: dl.ITableInfo) {
         this._dataLayer = dataContext.dataLayer;
     }
 
@@ -258,9 +271,9 @@ export class DataModel {
     }
     /** Updates the item in the database */
     updateItems(valuesToUpdate: any, where: any): q.Promise<any> {
-        return this.select({
+        return this.select(this.createCustomSelectOptions({
             where: where
-        })
+        }))
             .then((rows): q.Promise<any> => {
                 return h.Helpers.qSequential(rows, (row) => {
                     for (var element in valuesToUpdate) {
@@ -342,10 +355,10 @@ export class DataModel {
     }
     /** Selects items from the database by using the selectOptions */
     select(selectOptions: dl.ISelectOptions): q.Promise<any[]> {
-        return this._dataLayer.select(this.tableInfo, selectOptions)
+        return this._dataLayer.select(this.tableInfo, this.createCustomSelectOptions(selectOptions))
             .then((r): q.Promise<any> => {
                 if (!selectOptions.expand) {
-                    return q.resolve(null);
+                    return q.resolve(r);
                 }
 
                 return h.Helpers.qSequential(selectOptions.expand, (item) => {
@@ -355,6 +368,32 @@ export class DataModel {
                         return q.resolve(r);
                     });
             });
+    }
+
+    /** appends a fixed where which will be executed always when reading data by operators */
+    appendFixedWhere(where: any): void {
+        this._fixedWhere.push(where);
+    }
+
+    /** returns the column by its name */
+    getColumn(columnName: string): dl.IColumn {
+        var columns = this.tableInfo.table.columns.filter((column): boolean => {
+            return column.name === columnName;
+        });
+
+        if (columns.length === 1) {
+            return columns[0];
+        }
+
+        return null;
+    }
+
+    private createCustomSelectOptions(selectOptions: dl.ISelectOptions): dl.ISelectOptions {
+        selectOptions = selectOptions || {};
+        selectOptions = h.Helpers.extend({}, selectOptions);
+        selectOptions.where = this.getCombinedWhere(selectOptions.where);
+
+        return selectOptions;
     }
 
     private getBaseTables(): dl.ITable[] {
@@ -368,6 +407,27 @@ export class DataModel {
         }
 
         return baseTables;
+    }
+    private getCombinedWhere(customWhere: any) {
+        var newWhere: any[] = [];
+
+        if (this._fixedWhere) {
+            newWhere = newWhere.concat(this._fixedWhere);
+        }
+        if (customWhere) {
+            newWhere = [customWhere].concat(newWhere);
+        }
+
+        if (this.tableInfo.baseTableInfo) {
+            var baseModel = this.dataContext.getDataModel(this.tableInfo.baseTableInfo.table);
+            newWhere = baseModel.getCombinedWhere(newWhere);
+        }
+        
+        if (newWhere.length === 0) {
+            return null;
+        }
+
+        return newWhere;
     }
     private expand(expand: string, rows: any[]): q.Promise<any> {
         var expandKeys = expand.split('/');
@@ -386,11 +446,10 @@ export class DataModel {
                     where: [parentRelation.parentPrimaryKey.name, row[parentRelation.childColumn.name]]
                 })
                     .then((r): q.Promise<any> => {
-                        var arr: any[] = r;
-                        if (arr && arr.length === 1) {
-                            row[parentRelation.parentAssociationName] = arr[0];
+                        if (r.length === 1) {
+                            row[parentRelation.parentAssociationName] = r[0];
                             expandKeys.shift();
-                            return this.expand(expandKeys.join("/"), [arr[0]]);
+                            return this.expand(expandKeys.join("/"), [r[0]]);
                         }
 
                         return q.resolve(null);
@@ -412,14 +471,9 @@ export class DataModel {
                     where: [childRelation.childColumn.name, row[childRelation.parentPrimaryKey.name]]
                 })
                     .then((r): q.Promise<any> => {
-                        var arr: any[] = r;
-                        if (arr && Array.isArray(r)) {
-                            row[childRelation.childAssociationName] = arr;
-                            expandKeys.shift();
-                            return this.expand(expandKeys.join("/"), arr);
-                        }
-
-                        return q.resolve(null);
+                        row[childRelation.childAssociationName] = r;
+                        expandKeys.shift();
+                        return this.expand(expandKeys.join("/"), r);
                     });
             });
         }

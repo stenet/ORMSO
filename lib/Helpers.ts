@@ -13,4 +13,18 @@ export class Helpers {
                 });
         }, q.resolve(null));
     }
+    static extend(origin: any, add: any): any {
+        if (!add || typeof add !== 'object') {
+            return origin;
+        }
+
+        var keys = Object.keys(add);
+        var i = keys.length;
+
+        while (i--) {
+            origin[keys[i]] = add[keys[i]];
+        }
+
+        return origin;
+    };
 }
