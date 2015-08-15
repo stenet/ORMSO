@@ -34,17 +34,11 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="app.js.map" />
     <Content Include="tsd.json" />
     <TypeScriptCompile Include="app.ts" />
     <TypeScriptCompile Include="lib\DataContext.ts" />
     <TypeScriptCompile Include="lib\DataLayer.ts" />
     <TypeScriptCompile Include="lib\Helpers.ts" />
-    <TypeScriptCompile Include="server.ts" />
-    <Content Include="lib\DataContext.js.map" />
-    <Content Include="lib\DataLayer.js.map" />
-    <Content Include="lib\DataModel.js.map" />
-    <Content Include="lib\Helpers.js.map" />
     <Content Include="package.json" />
     <Content Include="README.md" />
     <TypeScriptCompile Include="typings\angularjs\angular-sanitize.d.ts" />
@@ -86,13 +80,6 @@
     <Folder Include="typings\serve-favicon\" />
     <Folder Include="typings\serve-static\" />
     <Folder Include="typings\sqlite3\" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="app.js" />
-    <Compile Include="lib\DataContext.js" />
-    <Compile Include="lib\DataLayer.js" />
-    <Compile Include="lib\DataModel.js" />
-    <Compile Include="lib\Helpers.js" />
   </ItemGroup>
   <!-- Do not delete the following Import Project.  While this appears to do nothing it is a marker for setting TypeScript properties before our import that depends on them. -->
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="False" />
