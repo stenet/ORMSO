@@ -74,8 +74,7 @@ export interface ISelectOptions {
     take?: number;
     expand?: string[];
 }
-
-interface IExecuteNonQueryResult {
+export interface IExecuteNonQueryResult {
     changedRows: number;
     lastId: number;
 }

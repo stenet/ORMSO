@@ -1,0 +1,18 @@
+﻿{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es5",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true
+  },
+  "files": [
+    "typings/tsd.d.ts",
+    "lib/Helpers.ts",
+    "lib/DataLayer.ts",
+    "lib/DataContext.ts",
+    "lib/SyncContext.ts",
+    "lib/PublishContext.ts",
+    "index.ts"
+  ]
+}
