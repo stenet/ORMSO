@@ -22,6 +22,6 @@
     "lib/DataContext.ts",
     "lib/SyncContext.ts",
     "lib/PublishContext.ts",
-    "ormso.ts"
+    "index.ts"
   ]
 }

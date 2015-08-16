@@ -1,3 +1,5 @@
+/// <reference path="../lib/DataContext.ts" />
+/// <reference path="../lib/DataLayer.ts" />
 var fs = require("fs");
 var dl = require("../lib/DataLayer");
 var dc = require("../lib/DataContext");

@@ -7,10 +7,11 @@ var dl = require("lib/DataLayer");
 var dc = require("lib/DataContext");
 var sc = require("lib/SyncContext");
 var pc = require("lib/PublishContext");
-module.exports = {
-    dl: dl,
-    dc: dc,
-    sc: sc,
-    pc: pc
-};
+var ormso;
+(function (ormso) {
+    dl = require("lib/DataLayer");
+    dc: dc;
+    sc: sc;
+    pc: pc;
+})(ormso = exports.ormso || (exports.ormso = {}));
 //# sourceMappingURL=ormso.js.map

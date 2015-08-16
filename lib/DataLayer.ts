@@ -1,7 +1,7 @@
 ﻿import q = require("q");
 import sqlite3 = require("sqlite3");
 import moment = require("moment");
-import h = require("./helpers");
+import h = require("./Helpers");
 
 export enum DataTypes {
     text,
@@ -180,7 +180,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         var statement = "delete from " + table.name
             + " where " + tableInfo.primaryKey.name + " = ?";
-        
+
         var parameters: any[] = [];
         parameters.push(item[tableInfo.primaryKey.name]);
 
@@ -215,7 +215,7 @@ export class Sqlite3DataLayer implements IDataLayer {
     }
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any> {
         return this.select(tableInfo, {
-            where: [tableInfo.primaryKey.name, id ]
+            where: [tableInfo.primaryKey.name, id]
         });
     }
 
@@ -452,7 +452,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             if (elements.length == 2) {
                 if (elements[1] === "null") {
                     return elements[0] + " is null";
-                } 
+                }
 
                 return elements[0] + " = " + this.getSelectWhereParameter(table, elements[0], parameters, elements[1]);
 

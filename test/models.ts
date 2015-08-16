@@ -1,4 +1,7 @@
-﻿import fs = require("fs");
+﻿/// <reference path="../lib/DataContext.ts" />
+/// <reference path="../lib/DataLayer.ts" />
+
+import fs = require("fs");
 import dl = require("../lib/DataLayer");
 import dc = require("../lib/DataContext");
 

@@ -1,5 +1,5 @@
-﻿import dl = require("./DataLayer");
-import h = require("./helpers");
+﻿import h = require("./helpers");
+import dl = require("./DataLayer");
 import q = require("q");
 
 export class DataContext {
