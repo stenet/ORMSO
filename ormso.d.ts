@@ -6,13 +6,13 @@
 
 declare module "ormso" {
     import dl = require('lib/DataLayer');
-    import dc = require('lib/DataLayer');
-    import sc = require('lib/DataLayer');
-    import pc = require('lib/DataLayer');
+    import dc = require('lib/DataContext');
+    import sc = require('lib/SyncContext');
+    import pc = require('lib/PublishContext');
     export = {
-        dl: dl,
-        dc: dc,
-        sc: sc,
-        pc: pc
+        DataLayers: dl,
+        DataContexts: dc,
+        SyncContexts: sc,
+        PublishContexts: pc
     };
 }
