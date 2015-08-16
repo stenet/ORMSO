@@ -118,31 +118,24 @@ var DataModel = (function () {
         this._afterDeleteCallbacks = [];
         this._dataLayer = dataContext.dataLayer;
     }
-    /** Add before insert callback */
     DataModel.prototype.onBeforeInsert = function (callback) {
         this._beforeInsertCallbacks.push(callback);
     };
-    /** Add after insert callback */
     DataModel.prototype.onAfterInsert = function (callback) {
         this._afterInsertCallbacks.push(callback);
     };
-    /** Add before update callback */
     DataModel.prototype.onBeforeUpdate = function (callback) {
         this._beforeUpdateCallbacks.push(callback);
     };
-    /** Add after update callback */
     DataModel.prototype.onAfterUpdate = function (callback) {
         this._afterUpdateCallbacks.push(callback);
     };
-    /** Add before delete callback */
     DataModel.prototype.onBeforeDelete = function (callback) {
         this._beforeDeleteCallbacks.push(callback);
     };
-    /** Add after delete callback */
     DataModel.prototype.onAfterDelete = function (callback) {
         this._afterDeleteCallbacks.push(callback);
     };
-    /** Insert the new item into the database */
     DataModel.prototype.insert = function (itemToCreate) {
         var _this = this;
         if (!itemToCreate) {
@@ -162,7 +155,6 @@ var DataModel = (function () {
             return q.resolve(itemToCreate);
         });
     };
-    /** Insert the new item into the database and returns the inserted item */
     DataModel.prototype.insertAndSelect = function (itemToCreate) {
         var _this = this;
         if (!itemToCreate) {
@@ -181,7 +173,6 @@ var DataModel = (function () {
             }
         });
     };
-    /** Updates the item in the database */
     DataModel.prototype.update = function (itemToUpdate) {
         var _this = this;
         if (!itemToUpdate) {
@@ -201,7 +192,6 @@ var DataModel = (function () {
             return q.resolve(itemToUpdate);
         });
     };
-    /** Updates the item in the database and returns the updated item */
     DataModel.prototype.updateAndSelect = function (itemToUpdate) {
         var _this = this;
         if (!itemToUpdate) {
@@ -220,7 +210,6 @@ var DataModel = (function () {
             }
         });
     };
-    /** Updates the item in the database */
     DataModel.prototype.updateItems = function (valuesToUpdate, where) {
         var _this = this;
         return this.select(this.createCustomSelectOptions({
@@ -235,7 +224,6 @@ var DataModel = (function () {
             });
         });
     };
-    /** Updates the item in the database, if it exists, otherwise creates the item */
     DataModel.prototype.updateOrInsert = function (item) {
         var _this = this;
         return q.fcall(function () {
@@ -260,7 +248,6 @@ var DataModel = (function () {
             return q.resolve(item);
         });
     };
-    /** Updates the item in the database, if it exists, otherwise creates the item and returns the newly read item */
     DataModel.prototype.updateOrInsertAndSelect = function (item) {
         var _this = this;
         return this.updateOrInsert(item)
@@ -268,7 +255,6 @@ var DataModel = (function () {
             return _this.selectById(item[_this.tableInfo.primaryKey.name]);
         });
     };
-    /** Deletes the item in the database */
     DataModel.prototype.delete = function (itemToDelete) {
         var _this = this;
         if (!itemToDelete) {
@@ -282,11 +268,9 @@ var DataModel = (function () {
             return _this.executeTrigger(itemToDelete, "_afterDeleteCallbacks");
         });
     };
-    /** Selects the item by its id */
     DataModel.prototype.selectById = function (id) {
         return this._dataLayer.selectById(this.tableInfo, id);
     };
-    /** Selects items from the database by using the selectOptions */
     DataModel.prototype.select = function (selectOptions) {
         var _this = this;
         return this._dataLayer.select(this.tableInfo, this.createCustomSelectOptions(selectOptions))
@@ -302,11 +286,9 @@ var DataModel = (function () {
             });
         });
     };
-    /** appends a fixed where which will be executed always when reading data by operators */
     DataModel.prototype.appendFixedWhere = function (where) {
         this._fixedWhere.push(where);
     };
-    /** returns the column by its name */
     DataModel.prototype.getColumn = function (columnName) {
         var columns = this.tableInfo.table.columns.filter(function (column) {
             return column.name === columnName;

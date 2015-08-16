@@ -8,11 +8,8 @@ export declare enum DataTypes {
     blob = 5,
 }
 export interface ITable {
-    /** Name of the table */
     name: string;
-    /** List of column inside this table */
     columns: IColumn[];
-    /** is abstract table */
     isAbstract?: boolean;
 }
 export interface ITableInfo {
@@ -23,19 +20,12 @@ export interface ITableInfo {
     relationsToChild: IRelationInfo[];
 }
 export interface IColumn {
-    /** Name of the column */
     name: string;
-    /** Datatype of the column */
     dataType: DataTypes;
-    /** Has to create index for this column */
     isIndexed?: boolean;
-    /** Defines the primary key */
     isPrimaryKey?: boolean;
-    /** Defines if column has AutoIncrement */
     isAutoIncrement?: boolean;
-    /** Defines the default value if column is not set explicitly */
     defaultValue?: any;
-    /** Defines a Relation to a parent table */
     relation?: IRelation;
 }
 export interface IRelation {
@@ -72,21 +62,13 @@ export interface IExecuteNonQueryResult {
     lastId: number;
 }
 export interface IDataLayer {
-    /** Validates the database schema and creates indexes and tables/column; does not remove columns (at least now) */
     updateSchema(table: ITable): q.Promise<any>;
-    /** Executes a query and returns a promise with the result rows */
     executeQuery(query: string): q.Promise<any[]>;
-    /** Executes a non-query (insert, update, delete, ...) and returns a promise with some informations */
     executeNonQuery(nonQuery: string): q.Promise<IExecuteNonQueryResult>;
-    /** inserts the item into the database */
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
-    /** Updates the item in the database */
     update(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
-    /** Deletes the item in the database */
     delete(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
-    /** Selects items from the database by using the selectOptions */
     select(tableInfo: ITableInfo, selectOptions?: ISelectOptions): q.Promise<any[]>;
-    /** Selects an item from the database by its id */
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any>;
 }
 export declare class Sqlite3DataLayer implements IDataLayer {

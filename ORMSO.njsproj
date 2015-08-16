@@ -37,7 +37,7 @@
   <ItemGroup>
     <Content Include="tsconfig.json" />
     <Content Include="tsd.json" />
-    <TypeScriptCompile Include="index.ts" />
+    <TypeScriptCompile Include="ormso.ts" />
     <TypeScriptCompile Include="lib\DataContext.ts" />
     <TypeScriptCompile Include="lib\DataLayer.ts" />
     <TypeScriptCompile Include="lib\Helpers.ts" />
@@ -99,7 +99,7 @@
     <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
     <TypeScriptOutFile />
     <TypeScriptOutDir />
-    <TypeScriptGeneratesDeclarations>True</TypeScriptGeneratesDeclarations>
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
     <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
     <TypeScriptMapRoot />
     <TypeScriptSourceRoot />

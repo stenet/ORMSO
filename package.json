@@ -1,8 +1,8 @@
 {
   "name": "ormso",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "JavaScript object mapper to database (currently Sqlite3), sync with other database and publish for clients.",
-  "main": "index.js",
+  "main": "dist/ormso.js",
   "author": {
     "name": "stefan",
     "email": "stefan.heim@hotmail.com"
@@ -26,7 +26,8 @@
     "sqlite3": "^3.0.10"
   },
   "scripts": {
-    "test": "mocha --reporter markdown >> test.md",
-    "build": "npm test && ntsc"
+    "test": "mocha",
+    "testoutput": "mocha --reporter markdown >> test.md",
+    "build": "npm test && npm run testoutput && ntsc"
   }
 }
