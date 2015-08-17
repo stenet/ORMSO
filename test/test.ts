@@ -43,4 +43,31 @@ describe("Data Model (Functions)", () => {
                 chai.assert.isNumber(r.Id);
             });
     });
+
+    it("Should create user with Profiles", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "stefan",
+                    FirstName: "Stefan",
+                    LastName: "Heim",
+                    Profiles: [
+                        { IdProfile: null }
+                    ]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.select({
+                    where: ["Id", r.Id],
+                    expand: ["Profiles"]
+                });
+            })
+            .then((r): void => {
+                var i = r[0];
+
+                chai.assert.property(i, "Profiles");
+                chai.assert.equal(i.Profiles.length, 1);
+                chai.assert.equal(i.Profiles[0].IdUser, i.Id);
+            });
+    });
 });

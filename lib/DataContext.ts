@@ -431,11 +431,11 @@ export class DataModel {
     }
     private saveChildRelations(row: any): q.Promise<any> {
         return h.Helpers.qSequential(this.tableInfo.relationsToChild, (relation: dl.IRelationInfo) => {
-            if (!row[relation.childAssociationName]) {
+            if (!row[relation.parentAssociationName]) {
                 return q.resolve(null);
             }
 
-            var children = row[relation.childAssociationName];
+            var children = row[relation.parentAssociationName];
             if (!Array.isArray(children)) {
                 return q.resolve(null);
             }

@@ -37,5 +37,30 @@ describe("Data Model (Functions)", function () {
             chai.assert.isNumber(r.Id);
         });
     });
+    it("Should create user with Profiles", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "stefan",
+                FirstName: "Stefan",
+                LastName: "Heim",
+                Profiles: [
+                    { IdProfile: null }
+                ]
+            });
+        })
+            .then(function (r) {
+            return tc.users.select({
+                where: ["Id", r.Id],
+                expand: ["Profiles"]
+            });
+        })
+            .then(function (r) {
+            var i = r[0];
+            chai.assert.property(i, "Profiles");
+            chai.assert.equal(i.Profiles.length, 1);
+            chai.assert.equal(i.Profiles[0].IdUser, i.Id);
+        });
+    });
 });
 //# sourceMappingURL=test.js.map
