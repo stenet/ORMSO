@@ -70,4 +70,20 @@ describe("Data Model (Functions)", () => {
                 chai.assert.equal(i.Profiles[0].IdUser, i.Id);
             });
     });
+    it("Should have count(*) = 1", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "stefan",
+                    FirstName: "Stefan",
+                    LastName: "Heim"
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.selectCount(["Id", r.Id]);
+            })
+            .then((r): void => {
+                chai.assert.equal(r, 1);
+            });
+    });
 });

@@ -66,13 +66,16 @@ export interface IOrderBy {
     column: IColumn;
     sort: OrderBySort;
 }
-export interface ISelectOptions {
+export interface ISelectOptionsDataLayer {
     columns?: IColumn[],
     where?: any,
     orderBy?: IOrderBy[],
     skip?: number;
     take?: number;
     expand?: string[];
+}
+export interface ISelectOptionsDataContext extends ISelectOptionsDataLayer {
+    requireTotal?: boolean;
 }
 export interface IExecuteNonQueryResult {
     changedRows: number;
@@ -95,9 +98,11 @@ export interface IDataLayer {
     /** Deletes the item in the database */
     delete(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
     /** Selects items from the database by using the selectOptions */
-    select(tableInfo: ITableInfo, selectOptions?: ISelectOptions): q.Promise<any[]>;
+    select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]>;
     /** Selects an item from the database by its id */
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any>;
+    /** Selects the count*/
+    selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number>;
 }
 export class Sqlite3DataLayer implements IDataLayer {
     private _database: sqlite3.Database;
@@ -189,7 +194,7 @@ export class Sqlite3DataLayer implements IDataLayer {
                 return q.resolve(r);
             });
     }
-    select(tableInfo: ITableInfo, selectOptions?: ISelectOptions): q.Promise<any[]> {
+    select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]> {
         var parameters = {};
 
         var statement = this.getSelectColumns(selectOptions)
@@ -217,6 +222,20 @@ export class Sqlite3DataLayer implements IDataLayer {
         return this.select(tableInfo, {
             where: [tableInfo.primaryKey.name, id]
         });
+    }
+    selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number> {
+        var parameters = {};
+
+        var statement = "select count(*) as Count"
+            + " "
+            + this.getSelectFrom(tableInfo.table)
+            + " "
+            + this.getSelectWhere(tableInfo.table, parameters, { where: where });
+
+        return this.executeQuery(statement, parameters)
+            .then((r): q.Promise<number> => {
+                return q.resolve(r[0].Count);
+            });
     }
 
     private prepareStatement(statement: string): q.Promise<sqlite3.Statement> {
@@ -364,7 +383,7 @@ export class Sqlite3DataLayer implements IDataLayer {
         });
     }
 
-    private getSelectColumns(selectOptions?: ISelectOptions): string {
+    private getSelectColumns(selectOptions?: ISelectOptionsDataLayer): string {
         var token = "select ";
 
         if (!selectOptions || !selectOptions.columns || selectOptions.columns.length === 0) {
@@ -377,7 +396,7 @@ export class Sqlite3DataLayer implements IDataLayer {
     private getSelectFrom(table: ITable): string {
         return "from " + table.name;
     }
-    private getSelectWhere(table: ITable, parameters: any, selectOptions?: ISelectOptions): string {
+    private getSelectWhere(table: ITable, parameters: any, selectOptions?: ISelectOptionsDataLayer): string {
         if (!selectOptions || !selectOptions.where) {
             return "";
         }
@@ -389,7 +408,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         return "where " + where;
     }
-    private getSelectOrderBy(selectOptions?: ISelectOptions): string {
+    private getSelectOrderBy(selectOptions?: ISelectOptionsDataLayer): string {
         if (!selectOptions || !selectOptions.orderBy || selectOptions.orderBy.length === 0) {
             return "";
         }
@@ -407,14 +426,14 @@ export class Sqlite3DataLayer implements IDataLayer {
                 throw Error(sort + " not implemented");
         }
     }
-    private getSelectTake(selectOptions?: ISelectOptions): string {
+    private getSelectTake(selectOptions?: ISelectOptionsDataLayer): string {
         if (!selectOptions || !selectOptions.take) {
             return "";
         }
 
         return "limit " + selectOptions.take;
     }
-    private getSelectSkip(selectOptions?: ISelectOptions): string {
+    private getSelectSkip(selectOptions?: ISelectOptionsDataLayer): string {
         if (!selectOptions || !selectOptions.skip) {
             return "";
         }

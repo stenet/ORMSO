@@ -62,5 +62,21 @@ describe("Data Model (Functions)", function () {
             chai.assert.equal(i.Profiles[0].IdUser, i.Id);
         });
     });
+    it("Should have count(*) = 1", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "stefan",
+                FirstName: "Stefan",
+                LastName: "Heim"
+            });
+        })
+            .then(function (r) {
+            return tc.users.selectCount(["Id", r.Id]);
+        })
+            .then(function (r) {
+            chai.assert.equal(r, 1);
+        });
+    });
 });
 //# sourceMappingURL=test.js.map

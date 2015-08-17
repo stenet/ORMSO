@@ -303,7 +303,7 @@ export class DataModel {
         return this._dataLayer.selectById(this.tableInfo, id);
     }
     /** Selects items from the database by using the selectOptions */
-    select(selectOptions: dl.ISelectOptions): q.Promise<any[]> {
+    select(selectOptions: dl.ISelectOptionsDataContext): q.Promise<any[]> {
         return this._dataLayer.select(this.tableInfo, this.createCustomSelectOptions(selectOptions))
             .then((r): q.Promise<any> => {
                 if (!selectOptions.expand) {
@@ -316,7 +316,23 @@ export class DataModel {
                     .then((): q.Promise<any> => {
                         return q.resolve(r);
                     });
+            })
+            .then((r): q.Promise<any> => {
+                if (selectOptions.requireTotal) {
+                    return this.selectCount(selectOptions.where)
+                        .then((c): q.Promise<any> => {
+                            return q.resolve({
+                                rows: r,
+                                count: c
+                            });
+                        }); 
+                } else {
+                    return q.resolve(r);
+                }
             });
+    }
+    selectCount(where: any): q.Promise<any> {
+        return this._dataLayer.selectCount(this.tableInfo, where);
     }
 
     /** appends a fixed where which will be executed always when reading data by operators */
@@ -337,12 +353,11 @@ export class DataModel {
         return null;
     }
 
-    private createCustomSelectOptions(selectOptions: dl.ISelectOptions): dl.ISelectOptions {
-        selectOptions = selectOptions || {};
-        selectOptions = h.Helpers.extend({}, selectOptions);
-        selectOptions.where = this.getCombinedWhere(selectOptions.where);
+    private createCustomSelectOptions(selectOptions: dl.ISelectOptionsDataContext): dl.ISelectOptionsDataLayer {
+        var result = h.Helpers.extend({}, selectOptions);
+        result.where = this.getCombinedWhere(result.where);
 
-        return selectOptions;
+        return result;
     }
 
     private getBaseTables(): dl.ITable[] {
