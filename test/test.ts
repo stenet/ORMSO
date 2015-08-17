@@ -70,7 +70,7 @@ describe("Data Model (Functions)", () => {
                 chai.assert.equal(i.Profiles[0].IdUser, i.Id);
             });
     });
-    it("Should have count(*) = 1", () => {
+    it("Testing selectCount", () => {
         return tc.finalized
             .then((): q.Promise<any> => {
                 return tc.users.insertAndSelect({
@@ -81,6 +81,22 @@ describe("Data Model (Functions)", () => {
             })
             .then((r): q.Promise<any> => {
                 return tc.users.selectCount(["Id", r.Id]);
+            })
+            .then((r): void => {
+                chai.assert.equal(r, 1);
+            });
+    });
+    it("Testing where with group or", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "Test GroupOr",
+                    FirstName: "Stefan",
+                    LastName: "Heim"
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.selectCount([["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"]]);
             })
             .then((r): void => {
                 chai.assert.equal(r, 1);

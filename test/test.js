@@ -62,7 +62,7 @@ describe("Data Model (Functions)", function () {
             chai.assert.equal(i.Profiles[0].IdUser, i.Id);
         });
     });
-    it("Should have count(*) = 1", function () {
+    it("Testing selectCount", function () {
         return tc.finalized
             .then(function () {
             return tc.users.insertAndSelect({
@@ -73,6 +73,22 @@ describe("Data Model (Functions)", function () {
         })
             .then(function (r) {
             return tc.users.selectCount(["Id", r.Id]);
+        })
+            .then(function (r) {
+            chai.assert.equal(r, 1);
+        });
+    });
+    it("Testing where with group or", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "Test GroupOr",
+                FirstName: "Stefan",
+                LastName: "Heim"
+            });
+        })
+            .then(function (r) {
+            return tc.users.selectCount([["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"]]);
         })
             .then(function (r) {
             chai.assert.equal(r, 1);

@@ -441,11 +441,7 @@ export class Sqlite3DataLayer implements IDataLayer {
         return "offset " + selectOptions.skip;
     }
     private getSelectWhereComponent(table: ITable, parameters: any, where: any): string {
-        var elements = [];
-
-        for (var element in where) {
-            elements.push(where[element]);
-        }
+        var elements: any[] = where;
 
         if (elements.length == 0) {
             return "";
@@ -456,10 +452,15 @@ export class Sqlite3DataLayer implements IDataLayer {
                 return this.getSelectWhereComponent(table, parameters, elements[0]);
             } else if (Array.isArray(elements[1])) {
                 return elements.map((x): string => this.getSelectWhereComponent(table, parameters, x)).join(" and ");
-            } else if (elements.length == 3) {
-                return this.getSelectWhereComponent(table, parameters, elements[0])
-                    + " " + elements[1]
-                    + " " + this.getSelectWhereComponent(table, parameters, elements[2]);
+            } else if (elements.length >= 3) {
+                var result = this.getSelectWhereComponent(table, parameters, elements[0]);
+
+                for (var index = 1; index < elements.length; index = index + 2) {
+                    result += " " + elements[index]
+                        + " " + this.getSelectWhereComponent(table, parameters, elements[index + 1])
+                }
+
+                return result;
             } else {
                 throw Error("Invalid filter " + JSON.stringify(where));
             }

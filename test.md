@@ -94,7 +94,7 @@ return tc.finalized
 });
 ```
 
-Should have count(*) = 1.
+Testing selectCount.
 
 ```js
 return tc.finalized
@@ -107,6 +107,25 @@ return tc.finalized
 })
     .then(function (r) {
     return tc.users.selectCount(["Id", r.Id]);
+})
+    .then(function (r) {
+    chai.assert.equal(r, 1);
+});
+```
+
+Testing where with group or.
+
+```js
+return tc.finalized
+    .then(function () {
+    return tc.users.insertAndSelect({
+        UserName: "stefan",
+        FirstName: "Stefan",
+        LastName: "Heim"
+    });
+})
+    .then(function (r) {
+    return tc.users.selectCount([["Id", r.Id], "or", ["Id", r.Id], "or", ["Id", r.Id], "or", ["Id", r.Id]]);
 })
     .then(function (r) {
     chai.assert.equal(r, 1);
