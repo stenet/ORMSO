@@ -201,7 +201,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             + " "
             + this.getSelectFrom(tableInfo.table)
             + " "
-            + this.getSelectWhere(tableInfo.table, parameters, selectOptions)
+            + this.getSelectWhere(tableInfo, parameters, selectOptions)
             + " "
             + this.getSelectOrderBy(selectOptions)
             + " "
@@ -230,7 +230,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             + " "
             + this.getSelectFrom(tableInfo.table)
             + " "
-            + this.getSelectWhere(tableInfo.table, parameters, { where: where });
+            + this.getSelectWhere(tableInfo, parameters, { where: where });
 
         return this.executeQuery(statement, parameters)
             .then((r): q.Promise<number> => {
@@ -396,12 +396,12 @@ export class Sqlite3DataLayer implements IDataLayer {
     private getSelectFrom(table: ITable): string {
         return "from " + table.name;
     }
-    private getSelectWhere(table: ITable, parameters: any, selectOptions?: ISelectOptionsDataLayer): string {
+    private getSelectWhere(tableInfo: ITableInfo, parameters: any, selectOptions?: ISelectOptionsDataLayer): string {
         if (!selectOptions || !selectOptions.where) {
             return "";
         }
 
-        var where = this.getSelectWhereComponent(table, parameters, selectOptions.where);
+        var where = this.getSelectWhereComponent(tableInfo, parameters, selectOptions.where);
         if (!where) {
             return "";
         }
@@ -440,7 +440,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         return "offset " + selectOptions.skip;
     }
-    private getSelectWhereComponent(table: ITable, parameters: any, where: any): string {
+    private getSelectWhereComponent(tableInfo: ITableInfo, parameters: any, where: any): string {
         var elements: any[] = where;
 
         if (elements.length == 0) {
@@ -449,15 +449,15 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         if (Array.isArray(elements[0])) {
             if (elements.length == 1) {
-                return this.getSelectWhereComponent(table, parameters, elements[0]);
+                return this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
             } else if (Array.isArray(elements[1])) {
-                return elements.map((x): string => this.getSelectWhereComponent(table, parameters, x)).join(" and ");
+                return elements.map((x): string => this.getSelectWhereComponent(tableInfo, parameters, x)).join(" and ");
             } else if (elements.length >= 3) {
-                var result = this.getSelectWhereComponent(table, parameters, elements[0]);
+                var result = this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
 
                 for (var index = 1; index < elements.length; index = index + 2) {
                     result += " " + elements[index]
-                        + " " + this.getSelectWhereComponent(table, parameters, elements[index + 1])
+                        + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
                 }
 
                 return result;
@@ -469,18 +469,20 @@ export class Sqlite3DataLayer implements IDataLayer {
                 throw Error("Invalid Filter " + JSON.stringify(where));
             }
 
+            var fieldName = this.getSelectWhereColumn(tableInfo, elements[0]);
+
             if (elements.length == 2) {
                 if (elements[1] === "null") {
-                    return elements[0] + " is null";
+                    return fieldName + " is null";
                 }
 
-                return elements[0] + " = " + this.getSelectWhereParameter(table, elements[0], parameters, elements[1]);
+                return fieldName + " = " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[1]);
 
             } else if (elements.length == 3) {
                 if (elements[2] === "null" && elements[1] === "=") {
-                    return elements[0] + " is null";
+                    return fieldName + " is null";
                 } else if (elements[2] === "null" && elements[1] === "!=") {
-                    return elements[0] + " is not null";
+                    return fieldName + " is not null";
                 }
 
                 switch (elements[1]) {
@@ -490,26 +492,44 @@ export class Sqlite3DataLayer implements IDataLayer {
                     case ">=":
                     case "<":
                     case "<=":
-                        return elements[0] + " " + elements[1] + " " + this.getSelectWhereParameter(table, elements[0], parameters, elements[2]);
+                        return fieldName + " " + elements[1] + " " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]);
                     case "contains":
-                        return elements[0] + " like '%' || " + this.getSelectWhereParameter(table, elements[0], parameters, elements[2]) + " || '%'";
+                        return fieldName + " like '%' || " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]) + " || '%'";
                     case "notcontains":
-                        return elements[0] + " not like '%' || " + this.getSelectWhereParameter(table, elements[0], parameters, elements[2]) + " || '%'";
+                        return fieldName + " not like '%' || " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]) + " || '%'";
                     case "startswith":
-                        return elements[0] + " like " + this.getSelectWhereParameter(table, elements[0], parameters, elements[2]) + " || '%'";
+                        return fieldName + " like " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]) + " || '%'";
                     case "endswith":
-                        return elements[0] + " like '%' + " + this.getSelectWhereParameter(table, elements[0], parameters, elements[2]);
+                        return fieldName + " like '%' + " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]);
                     default:
                         throw Error("Operator " + elements[1] + " in filter " + JSON.stringify(where) + " not implemented");
                 }
             }
         }
     }
-    private getSelectWhereParameter(table: ITable, columnName: string, parameters: any, val: any): string {
+    private getSelectWhereColumn(tableInfo: ITableInfo, columnName: string): string {
+        if (columnName.indexOf(".") < 0) {
+            return columnName;
+        } else {
+            var columnNames = columnName.split(".");
+
+            var relationInfos = tableInfo.relationsToParent.filter((relation): boolean => {
+                return relation.childAssociationName === columnNames[0];
+            });
+
+            if (relationInfos.length != 1) {
+                throw Error("Relation for fieldname " + columnName + " does not exists");
+            }
+
+            return "(select " + columnNames[1] + " from " + relationInfos[0].parentTableInfo.table.name
+                + " where " + relationInfos[0].parentPrimaryKey.name + " = " + tableInfo.table.name + "." + relationInfos[0].childColumn.name + ")";
+        }
+    }
+    private getSelectWhereParameter(tableInfo: ITableInfo, columnName: string, parameters: any, val: any): string {
         var count = Object.keys(parameters).length + 1;
         var parameterName = "$" + count;
 
-        parameters[parameterName] = this.convertToStorage(table, this.getColumn(table, columnName), val);
+        parameters[parameterName] = this.convertToStorage(tableInfo.table, this.getColumn(tableInfo, columnName), val);
 
         return parameterName;
     }
@@ -580,15 +600,29 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         return val;
     }
-    private getColumn(table: ITable, columnName: string): IColumn {
-        var columns = table.columns.filter((column): boolean => {
-            return column.name === columnName;
-        });
+    private getColumn(tableInfo: ITableInfo, columnName: string): IColumn {
+        if (columnName.indexOf(".") < 0) {
+            var columns = tableInfo.table.columns.filter((column): boolean => {
+                return column.name === columnName;
+            });
 
-        if (columns.length !== 1) {
-            throw Error("Column " + columnName + " does not exists");
+            if (columns.length !== 1) {
+                throw Error("Column " + columnName + " does not exists");
+            }
+
+            return columns[0];
+        } else {
+            var columnNames = columnName.split(".");
+
+            var relationInfos = tableInfo.relationsToParent.filter((relation): boolean => {
+                return relation.childAssociationName === columnNames[0];
+            });
+
+            if (relationInfos.length != 1) {
+                throw Error("Relation for fieldname " + columnName + " does not exists");
+            }
+
+            return this.getColumn(relationInfos[0].parentTableInfo, columnNames.splice(1).join("."));
         }
-
-        return columns[0];
     }
 }

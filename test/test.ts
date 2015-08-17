@@ -102,4 +102,33 @@ describe("Data Model (Functions)", () => {
                 chai.assert.equal(r, 1);
             });
     });
+    it("Testing search of expanded value", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "stefan",
+                    FirstName: "Stefan",
+                    LastName: "Heim",
+                    Profiles: [
+                        { IdProfile: null }
+                    ]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.select({
+                    where: ["Id", r.Id],
+                    expand: ["Profiles"]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.usersToProfile.select({
+                    where: ["User.Id", r[0].Id]
+                });
+            })
+            .then((r): void => {
+                var i: any[] = r;
+
+                chai.assert.equal(i.length, 1);
+            });
+    });
 });

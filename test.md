@@ -119,16 +119,47 @@ Testing where with group or.
 return tc.finalized
     .then(function () {
     return tc.users.insertAndSelect({
-        UserName: "stefan",
+        UserName: "Test GroupOr",
         FirstName: "Stefan",
         LastName: "Heim"
     });
 })
     .then(function (r) {
-    return tc.users.selectCount([["Id", r.Id], "or", ["Id", r.Id], "or", ["Id", r.Id], "or", ["Id", r.Id]]);
+    return tc.users.selectCount([["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"], "or", ["UserName", "contains", "Test GroupOr"]]);
 })
     .then(function (r) {
     chai.assert.equal(r, 1);
+});
+```
+
+Testing search of expanded value.
+
+```js
+return tc.finalized
+    .then(function () {
+    return tc.users.insertAndSelect({
+        UserName: "stefan",
+        FirstName: "Stefan",
+        LastName: "Heim",
+        Profiles: [
+            { IdProfile: null }
+        ]
+    });
+})
+    .then(function (r) {
+    return tc.users.select({
+        where: ["Id", r.Id],
+        expand: ["Profiles"]
+    });
+})
+    .then(function (r) {
+    return tc.usersToProfile.select({
+        where: ["User.Id", r[0].Id]
+    });
+})
+    .then(function (r) {
+    var i = r;
+    chai.assert.equal(i.length, 1);
 });
 ```
 

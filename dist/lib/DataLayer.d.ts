@@ -103,16 +103,17 @@ export declare class Sqlite3DataLayer implements IDataLayer {
     private getColumns(table, withPrimaryKey, withAutoIncrement);
     private getSelectColumns(selectOptions?);
     private getSelectFrom(table);
-    private getSelectWhere(table, parameters, selectOptions?);
+    private getSelectWhere(tableInfo, parameters, selectOptions?);
     private getSelectOrderBy(selectOptions?);
     private getSelectOrderBySort(sort);
     private getSelectTake(selectOptions?);
     private getSelectSkip(selectOptions?);
-    private getSelectWhereComponent(table, parameters, where);
-    private getSelectWhereParameter(table, columnName, parameters, val);
+    private getSelectWhereComponent(tableInfo, parameters, where);
+    private getSelectWhereColumn(tableInfo, columnName);
+    private getSelectWhereParameter(tableInfo, columnName, parameters, val);
     private validateBeforeUpdateToStore(table, item);
     private validateAfterReadFromStore(table, item);
     private convertToStorage(table, column, val);
     private convertFromStorage(table, column, val);
-    private getColumn(table, columnName);
+    private getColumn(tableInfo, columnName);
 }

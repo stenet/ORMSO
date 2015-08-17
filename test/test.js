@@ -94,5 +94,33 @@ describe("Data Model (Functions)", function () {
             chai.assert.equal(r, 1);
         });
     });
+    it("Testing search of expanded value", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "stefan",
+                FirstName: "Stefan",
+                LastName: "Heim",
+                Profiles: [
+                    { IdProfile: null }
+                ]
+            });
+        })
+            .then(function (r) {
+            return tc.users.select({
+                where: ["Id", r.Id],
+                expand: ["Profiles"]
+            });
+        })
+            .then(function (r) {
+            return tc.usersToProfile.select({
+                where: ["User.Id", r[0].Id]
+            });
+        })
+            .then(function (r) {
+            var i = r;
+            chai.assert.equal(i.length, 1);
+        });
+    });
 });
 //# sourceMappingURL=test.js.map
