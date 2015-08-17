@@ -273,7 +273,8 @@ var DataModel = (function () {
     };
     DataModel.prototype.select = function (selectOptions) {
         var _this = this;
-        return this._dataLayer.select(this.tableInfo, this.createCustomSelectOptions(selectOptions))
+        var customSelectOptions = this.createCustomSelectOptions(selectOptions);
+        return this._dataLayer.select(this.tableInfo, customSelectOptions)
             .then(function (r) {
             if (!selectOptions.expand) {
                 return q.resolve(r);
@@ -284,7 +285,24 @@ var DataModel = (function () {
                 .then(function () {
                 return q.resolve(r);
             });
+        })
+            .then(function (r) {
+            if (selectOptions.requireTotal) {
+                return _this.selectCount(customSelectOptions.where)
+                    .then(function (c) {
+                    return q.resolve({
+                        rows: r,
+                        count: c
+                    });
+                });
+            }
+            else {
+                return q.resolve(r);
+            }
         });
+    };
+    DataModel.prototype.selectCount = function (where) {
+        return this._dataLayer.selectCount(this.tableInfo, where);
     };
     DataModel.prototype.appendFixedWhere = function (where) {
         this._fixedWhere.push(where);
@@ -299,10 +317,9 @@ var DataModel = (function () {
         return null;
     };
     DataModel.prototype.createCustomSelectOptions = function (selectOptions) {
-        selectOptions = selectOptions || {};
-        selectOptions = h.Helpers.extend({}, selectOptions);
-        selectOptions.where = this.getCombinedWhere(selectOptions.where);
-        return selectOptions;
+        var result = h.Helpers.extend({}, selectOptions);
+        result.where = this.getCombinedWhere(result.where);
+        return result;
     };
     DataModel.prototype.getBaseTables = function () {
         var baseTables = [];
@@ -375,10 +392,10 @@ var DataModel = (function () {
     DataModel.prototype.saveChildRelations = function (row) {
         var _this = this;
         return h.Helpers.qSequential(this.tableInfo.relationsToChild, function (relation) {
-            if (!row[relation.childAssociationName]) {
+            if (!row[relation.parentAssociationName]) {
                 return q.resolve(null);
             }
-            var children = row[relation.childAssociationName];
+            var children = row[relation.parentAssociationName];
             if (!Array.isArray(children)) {
                 return q.resolve(null);
             }

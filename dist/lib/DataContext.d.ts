@@ -43,7 +43,8 @@ export declare class DataModel {
     updateOrInsertAndSelect(item: any): q.Promise<any>;
     delete(itemToDelete: any): q.Promise<any>;
     selectById(id: any): q.Promise<any>;
-    select(selectOptions: dl.ISelectOptions): q.Promise<any[]>;
+    select(selectOptions: dl.ISelectOptionsDataContext): q.Promise<any[]>;
+    selectCount(where: any): q.Promise<any>;
     appendFixedWhere(where: any): void;
     getColumn(columnName: string): dl.IColumn;
     private createCustomSelectOptions(selectOptions);

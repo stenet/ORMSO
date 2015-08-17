@@ -304,7 +304,9 @@ export class DataModel {
     }
     /** Selects items from the database by using the selectOptions */
     select(selectOptions: dl.ISelectOptionsDataContext): q.Promise<any[]> {
-        return this._dataLayer.select(this.tableInfo, this.createCustomSelectOptions(selectOptions))
+        var customSelectOptions = this.createCustomSelectOptions(selectOptions);
+
+        return this._dataLayer.select(this.tableInfo, customSelectOptions)
             .then((r): q.Promise<any> => {
                 if (!selectOptions.expand) {
                     return q.resolve(r);
@@ -319,7 +321,7 @@ export class DataModel {
             })
             .then((r): q.Promise<any> => {
                 if (selectOptions.requireTotal) {
-                    return this.selectCount(selectOptions.where)
+                    return this.selectCount(customSelectOptions.where)
                         .then((c): q.Promise<any> => {
                             return q.resolve({
                                 rows: r,

@@ -66,3 +66,50 @@ return tc.finalized
 });
 ```
 
+Should create user with Profiles.
+
+```js
+return tc.finalized
+    .then(function () {
+    return tc.users.insertAndSelect({
+        UserName: "stefan",
+        FirstName: "Stefan",
+        LastName: "Heim",
+        Profiles: [
+            { IdProfile: null }
+        ]
+    });
+})
+    .then(function (r) {
+    return tc.users.select({
+        where: ["Id", r.Id],
+        expand: ["Profiles"]
+    });
+})
+    .then(function (r) {
+    var i = r[0];
+    chai.assert.property(i, "Profiles");
+    chai.assert.equal(i.Profiles.length, 1);
+    chai.assert.equal(i.Profiles[0].IdUser, i.Id);
+});
+```
+
+Should have count(*) = 1.
+
+```js
+return tc.finalized
+    .then(function () {
+    return tc.users.insertAndSelect({
+        UserName: "stefan",
+        FirstName: "Stefan",
+        LastName: "Heim"
+    });
+})
+    .then(function (r) {
+    return tc.users.selectCount(["Id", r.Id]);
+})
+    .then(function (r) {
+    chai.assert.equal(r, 1);
+});
+```
+

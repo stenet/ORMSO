@@ -117,6 +117,18 @@ var Sqlite3DataLayer = (function () {
             where: [tableInfo.primaryKey.name, id]
         });
     };
+    Sqlite3DataLayer.prototype.selectCount = function (tableInfo, where) {
+        var parameters = {};
+        var statement = "select count(*) as Count"
+            + " "
+            + this.getSelectFrom(tableInfo.table)
+            + " "
+            + this.getSelectWhere(tableInfo.table, parameters, { where: where });
+        return this.executeQuery(statement, parameters)
+            .then(function (r) {
+            return q.resolve(r[0].Count);
+        });
+    };
     Sqlite3DataLayer.prototype.prepareStatement = function (statement) {
         var _this = this;
         return q.Promise(function (res, rej) {

@@ -49,13 +49,16 @@ export interface IOrderBy {
     column: IColumn;
     sort: OrderBySort;
 }
-export interface ISelectOptions {
+export interface ISelectOptionsDataLayer {
     columns?: IColumn[];
     where?: any;
     orderBy?: IOrderBy[];
     skip?: number;
     take?: number;
     expand?: string[];
+}
+export interface ISelectOptionsDataContext extends ISelectOptionsDataLayer {
+    requireTotal?: boolean;
 }
 export interface IExecuteNonQueryResult {
     changedRows: number;
@@ -68,8 +71,9 @@ export interface IDataLayer {
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
     update(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
     delete(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
-    select(tableInfo: ITableInfo, selectOptions?: ISelectOptions): q.Promise<any[]>;
+    select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]>;
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any>;
+    selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number>;
 }
 export declare class Sqlite3DataLayer implements IDataLayer {
     private _database;
@@ -80,8 +84,9 @@ export declare class Sqlite3DataLayer implements IDataLayer {
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
     update(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
     delete(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
-    select(tableInfo: ITableInfo, selectOptions?: ISelectOptions): q.Promise<any[]>;
+    select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]>;
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any>;
+    selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number>;
     private prepareStatement(statement);
     private executeAll(preparedStatement, parameters?);
     private executeRun(preparedStatement, parameters?);
