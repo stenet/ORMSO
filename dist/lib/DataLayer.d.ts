@@ -46,7 +46,7 @@ export declare enum OrderBySort {
     desc = 1,
 }
 export interface IOrderBy {
-    column: IColumn;
+    columnName: string;
     sort: OrderBySort;
 }
 export interface ISelectOptionsDataLayer {
@@ -55,10 +55,10 @@ export interface ISelectOptionsDataLayer {
     orderBy?: IOrderBy[];
     skip?: number;
     take?: number;
-    expand?: string[];
+    expand?: any;
 }
 export interface ISelectOptionsDataContext extends ISelectOptionsDataLayer {
-    requireTotal?: boolean;
+    requireTotalCount?: boolean;
 }
 export interface IExecuteNonQueryResult {
     changedRows: number;
@@ -104,13 +104,13 @@ export declare class Sqlite3DataLayer implements IDataLayer {
     private getSelectColumns(selectOptions?);
     private getSelectFrom(table);
     private getSelectWhere(tableInfo, parameters, selectOptions?);
-    private getSelectOrderBy(selectOptions?);
+    private getSelectOrderBy(tableInfo, selectOptions?);
     private getSelectOrderBySort(sort);
     private getSelectTake(selectOptions?);
     private getSelectSkip(selectOptions?);
     private getSelectWhereComponent(tableInfo, parameters, where);
-    private getSelectWhereColumn(tableInfo, columnName);
     private getSelectWhereParameter(tableInfo, columnName, parameters, val);
+    private getSelectFieldName(tableInfo, columnName);
     private validateBeforeUpdateToStore(table, item);
     private validateAfterReadFromStore(table, item);
     private convertToStorage(table, column, val);

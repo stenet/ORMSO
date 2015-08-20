@@ -18,3 +18,4 @@
 /// <reference path="sqlite3/sqlite3.d.ts" />
 /// <reference path="mocha/mocha.d.ts" />
 /// <reference path="chai/chai.d.ts" />
+/// <reference path="extend/extend.d.ts" />

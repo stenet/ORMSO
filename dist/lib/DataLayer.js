@@ -99,7 +99,7 @@ var Sqlite3DataLayer = (function () {
             + " "
             + this.getSelectWhere(tableInfo, parameters, selectOptions)
             + " "
-            + this.getSelectOrderBy(selectOptions)
+            + this.getSelectOrderBy(tableInfo, selectOptions)
             + " "
             + this.getSelectTake(selectOptions)
             + " "
@@ -290,12 +290,14 @@ var Sqlite3DataLayer = (function () {
         }
         return "where " + where;
     };
-    Sqlite3DataLayer.prototype.getSelectOrderBy = function (selectOptions) {
+    Sqlite3DataLayer.prototype.getSelectOrderBy = function (tableInfo, selectOptions) {
         var _this = this;
         if (!selectOptions || !selectOptions.orderBy || selectOptions.orderBy.length === 0) {
             return "";
         }
-        return "order by " + selectOptions.orderBy.map(function (orderBy) { return orderBy.column.name + " " + _this.getSelectOrderBySort(orderBy.sort); })
+        return "order by " + selectOptions.orderBy.map(function (orderBy) {
+            return _this.getSelectFieldName(tableInfo, orderBy.columnName) + " " + _this.getSelectOrderBySort(orderBy.sort);
+        })
             .join(", ");
     };
     Sqlite3DataLayer.prototype.getSelectOrderBySort = function (sort) {
@@ -349,7 +351,7 @@ var Sqlite3DataLayer = (function () {
             if (elements.length < 2 || elements.length > 3) {
                 throw Error("Invalid Filter " + JSON.stringify(where));
             }
-            var fieldName = this.getSelectWhereColumn(tableInfo, elements[0]);
+            var fieldName = this.getSelectFieldName(tableInfo, elements[0]);
             if (elements.length == 2) {
                 if (elements[1] === "null") {
                     return fieldName + " is null";
@@ -385,7 +387,13 @@ var Sqlite3DataLayer = (function () {
             }
         }
     };
-    Sqlite3DataLayer.prototype.getSelectWhereColumn = function (tableInfo, columnName) {
+    Sqlite3DataLayer.prototype.getSelectWhereParameter = function (tableInfo, columnName, parameters, val) {
+        var count = Object.keys(parameters).length + 1;
+        var parameterName = "$" + count;
+        parameters[parameterName] = this.convertToStorage(tableInfo.table, this.getColumn(tableInfo, columnName), val);
+        return parameterName;
+    };
+    Sqlite3DataLayer.prototype.getSelectFieldName = function (tableInfo, columnName) {
         if (columnName.indexOf(".") < 0) {
             return columnName;
         }
@@ -400,12 +408,6 @@ var Sqlite3DataLayer = (function () {
             return "(select " + columnNames[1] + " from " + relationInfos[0].parentTableInfo.table.name
                 + " where " + relationInfos[0].parentPrimaryKey.name + " = " + tableInfo.table.name + "." + relationInfos[0].childColumn.name + ")";
         }
-    };
-    Sqlite3DataLayer.prototype.getSelectWhereParameter = function (tableInfo, columnName, parameters, val) {
-        var count = Object.keys(parameters).length + 1;
-        var parameterName = "$" + count;
-        parameters[parameterName] = this.convertToStorage(tableInfo.table, this.getColumn(tableInfo, columnName), val);
-        return parameterName;
     };
     Sqlite3DataLayer.prototype.validateBeforeUpdateToStore = function (table, item) {
         var _this = this;

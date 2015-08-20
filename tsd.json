@@ -64,6 +64,9 @@
     },
     "chai/chai.d.ts": {
       "commit": "5109e1269d6ab8e8e73b1a5e85d8ceb836d3099f"
+    },
+    "extend/extend.d.ts": {
+      "commit": "38fb591c6eba840e0b53d1110302b8e4fb04651c"
     }
   }
 }

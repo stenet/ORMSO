@@ -63,7 +63,7 @@ export enum OrderBySort {
     desc
 }
 export interface IOrderBy {
-    column: IColumn;
+    columnName: string;
     sort: OrderBySort;
 }
 export interface ISelectOptionsDataLayer {
@@ -72,10 +72,10 @@ export interface ISelectOptionsDataLayer {
     orderBy?: IOrderBy[],
     skip?: number;
     take?: number;
-    expand?: string[];
+    expand?: any;
 }
 export interface ISelectOptionsDataContext extends ISelectOptionsDataLayer {
-    requireTotal?: boolean;
+    requireTotalCount?: boolean;
 }
 export interface IExecuteNonQueryResult {
     changedRows: number;
@@ -203,7 +203,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             + " "
             + this.getSelectWhere(tableInfo, parameters, selectOptions)
             + " "
-            + this.getSelectOrderBy(selectOptions)
+            + this.getSelectOrderBy(tableInfo, selectOptions)
             + " "
             + this.getSelectTake(selectOptions)
             + " "
@@ -408,12 +408,14 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         return "where " + where;
     }
-    private getSelectOrderBy(selectOptions?: ISelectOptionsDataLayer): string {
+    private getSelectOrderBy(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): string {
         if (!selectOptions || !selectOptions.orderBy || selectOptions.orderBy.length === 0) {
             return "";
         }
 
-        return "order by " + selectOptions.orderBy.map((orderBy): string => orderBy.column.name + " " + this.getSelectOrderBySort(orderBy.sort))
+        return "order by " + selectOptions.orderBy.map((orderBy): string => {
+            return this.getSelectFieldName(tableInfo, orderBy.columnName) + " " + this.getSelectOrderBySort(orderBy.sort);
+            })
             .join(", ");
     }
     private getSelectOrderBySort(sort: OrderBySort): string {
@@ -469,7 +471,7 @@ export class Sqlite3DataLayer implements IDataLayer {
                 throw Error("Invalid Filter " + JSON.stringify(where));
             }
 
-            var fieldName = this.getSelectWhereColumn(tableInfo, elements[0]);
+            var fieldName = this.getSelectFieldName(tableInfo, elements[0]);
 
             if (elements.length == 2) {
                 if (elements[1] === "null") {
@@ -507,7 +509,15 @@ export class Sqlite3DataLayer implements IDataLayer {
             }
         }
     }
-    private getSelectWhereColumn(tableInfo: ITableInfo, columnName: string): string {
+    private getSelectWhereParameter(tableInfo: ITableInfo, columnName: string, parameters: any, val: any): string {
+        var count = Object.keys(parameters).length + 1;
+        var parameterName = "$" + count;
+
+        parameters[parameterName] = this.convertToStorage(tableInfo.table, this.getColumn(tableInfo, columnName), val);
+
+        return parameterName;
+    }
+    private getSelectFieldName(tableInfo: ITableInfo, columnName: string): string {
         if (columnName.indexOf(".") < 0) {
             return columnName;
         } else {
@@ -524,14 +534,6 @@ export class Sqlite3DataLayer implements IDataLayer {
             return "(select " + columnNames[1] + " from " + relationInfos[0].parentTableInfo.table.name
                 + " where " + relationInfos[0].parentPrimaryKey.name + " = " + tableInfo.table.name + "." + relationInfos[0].childColumn.name + ")";
         }
-    }
-    private getSelectWhereParameter(tableInfo: ITableInfo, columnName: string, parameters: any, val: any): string {
-        var count = Object.keys(parameters).length + 1;
-        var parameterName = "$" + count;
-
-        parameters[parameterName] = this.convertToStorage(tableInfo.table, this.getColumn(tableInfo, columnName), val);
-
-        return parameterName;
     }
 
     private validateBeforeUpdateToStore(table: ITable, item: any): void {

@@ -50,7 +50,9 @@ export declare class DataModel {
     private createCustomSelectOptions(selectOptions);
     private getBaseTables();
     private getCombinedWhere(customWhere);
-    private expand(expand, rows);
+    private expand(selectOptions, rows);
+    private expandRelation(relationName, selectOptions, rows);
     private saveChildRelations(row);
+    private getSelectOptionsWithAdditionalWhere(selectOptions, where);
     private executeTrigger(itemToChange, eventVariable);
 }

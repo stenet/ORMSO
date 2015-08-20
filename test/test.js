@@ -1,5 +1,6 @@
 var chai = require("chai");
 var tc = require("./models");
+var dl = require("../lib/DataLayer");
 describe("Data Context (Structure)", function () {
     it("Should has DataContext", function () {
         chai.assert(tc.dataCtx != null);
@@ -52,7 +53,9 @@ describe("Data Model (Functions)", function () {
             .then(function (r) {
             return tc.users.select({
                 where: ["Id", r.Id],
-                expand: ["Profiles"]
+                expand: {
+                    Profiles: null
+                }
             });
         })
             .then(function (r) {
@@ -108,13 +111,38 @@ describe("Data Model (Functions)", function () {
         })
             .then(function (r) {
             return tc.users.select({
-                where: ["Id", r.Id],
-                expand: ["Profiles"]
+                where: ["Id", r.Id]
             });
         })
             .then(function (r) {
             return tc.usersToProfile.select({
                 where: ["User.Id", r[0].Id]
+            });
+        })
+            .then(function (r) {
+            var i = r;
+            chai.assert.equal(i.length, 1);
+        });
+    });
+    it("Testing search with orderby of expanded value", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "TestExpandedOrderBy",
+                FirstName: "Stefan",
+                LastName: "Heim",
+                Profiles: [
+                    { IdProfile: null }
+                ]
+            });
+        })
+            .then(function (r) {
+            return tc.usersToProfile.select({
+                where: ["User.Id", r.Id],
+                orderBy: [{
+                        columnName: "User.UserName",
+                        sort: dl.OrderBySort.asc
+                    }]
             });
         })
             .then(function (r) {

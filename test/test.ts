@@ -1,6 +1,7 @@
 ﻿import q = require("q");
 import chai = require("chai");
 import tc = require("./models");
+import dl = require("../lib/DataLayer");
 
 describe("Data Context (Structure)", () => {
     it("Should has DataContext", () => {
@@ -59,7 +60,9 @@ describe("Data Model (Functions)", () => {
             .then((r): q.Promise<any> => {
                 return tc.users.select({
                     where: ["Id", r.Id],
-                    expand: ["Profiles"]
+                    expand: {
+                        Profiles: null
+                    }
                 });
             })
             .then((r): void => {
@@ -116,13 +119,39 @@ describe("Data Model (Functions)", () => {
             })
             .then((r): q.Promise<any> => {
                 return tc.users.select({
-                    where: ["Id", r.Id],
-                    expand: ["Profiles"]
+                    where: ["Id", r.Id]
                 });
             })
             .then((r): q.Promise<any> => {
                 return tc.usersToProfile.select({
                     where: ["User.Id", r[0].Id]
+                });
+            })
+            .then((r): void => {
+                var i: any[] = r;
+
+                chai.assert.equal(i.length, 1);
+            });
+    });
+    it("Testing search with orderby of expanded value", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "TestExpandedOrderBy",
+                    FirstName: "Stefan",
+                    LastName: "Heim",
+                    Profiles: [
+                        { IdProfile: null }
+                    ]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.usersToProfile.select({
+                    where: ["User.Id", r.Id],
+                    orderBy: [{
+                        columnName: "User.UserName",
+                        sort: dl.OrderBySort.asc
+                    }]
                 });
             })
             .then((r): void => {

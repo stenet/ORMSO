@@ -1,6 +1,7 @@
 ﻿import h = require("./helpers");
 import dl = require("./DataLayer");
 import q = require("q");
+import extend = require("extend");
 
 export class DataContext {
     private _dataModels: DataModel[] = [];
@@ -312,15 +313,10 @@ export class DataModel {
                     return q.resolve(r);
                 }
 
-                return h.Helpers.qSequential(selectOptions.expand, (item) => {
-                    return this.expand(item, r);
-                })
-                    .then((): q.Promise<any> => {
-                        return q.resolve(r);
-                    });
+                return this.expand(selectOptions, r);
             })
             .then((r): q.Promise<any> => {
-                if (selectOptions.requireTotal) {
+                if (selectOptions.requireTotalCount) {
                     return this.selectCount(customSelectOptions.where)
                         .then((c): q.Promise<any> => {
                             return q.resolve({
@@ -395,11 +391,25 @@ export class DataModel {
 
         return newWhere;
     }
-    private expand(expand: string, rows: any[]): q.Promise<any> {
-        var expandKeys = expand.split('/');
+    private expand(selectOptions: dl.ISelectOptionsDataContext, rows: any[]): q.Promise<any> {
+        var relations: string[] = [];
 
+        for (var relationName in selectOptions.expand) {
+            relations.push(relationName);
+        }
+
+        return h.Helpers.qSequential(relations, (relationName: string) => {
+            var relationSelectOptions = selectOptions.expand[relationName];
+
+            return this.expandRelation(relationName, relationSelectOptions, rows);
+        })
+            .then((): q.Promise<any[]> => {
+                return q.resolve(rows);
+            });
+    }
+    private expandRelation(relationName: string, selectOptions: dl.ISelectOptionsDataContext, rows: any[]): q.Promise<any> {
         var parentRelations = this.tableInfo.relationsToParent.filter((relation): boolean => {
-            return relation.childAssociationName === expandKeys[0];
+            return relation.childAssociationName === relationName;
         });
 
         if (parentRelations.length === 1) {
@@ -408,14 +418,20 @@ export class DataModel {
             return h.Helpers.qSequential(rows, (row) => {
                 var dataModel = this.dataContext.getDataModel(parentRelation.parentTableInfo.table);
 
-                return dataModel.select({
-                    where: [parentRelation.parentPrimaryKey.name, row[parentRelation.childColumn.name]]
-                })
+                let newSelectOptions = this.getSelectOptionsWithAdditionalWhere(
+                    selectOptions,
+                    [parentRelation.parentPrimaryKey.name, row[parentRelation.childColumn.name]]);
+
+                return dataModel.select(newSelectOptions)
                     .then((r): q.Promise<any> => {
                         if (r.length === 1) {
                             row[parentRelation.childAssociationName] = r[0];
-                            expandKeys.shift();
-                            return this.expand(expandKeys.join("/"), [r[0]]);
+                            
+                            if (newSelectOptions.expand) {
+                                return this.expand(newSelectOptions, r);
+                            } else {
+                                return q.resolve(null);
+                            }
                         }
 
                         return q.resolve(null);
@@ -424,7 +440,7 @@ export class DataModel {
         }
 
         var childRelations = this.tableInfo.relationsToChild.filter((relation): boolean => {
-            return relation.parentAssociationName === expandKeys[0];
+            return relation.parentAssociationName === relationName;
         });
 
         if (childRelations.length === 1) {
@@ -433,13 +449,19 @@ export class DataModel {
             return h.Helpers.qSequential(rows, (row) => {
                 var dataModel = this.dataContext.getDataModel(childRelation.childTableInfo.table);
 
-                return dataModel.select({
-                    where: [childRelation.childColumn.name, row[childRelation.parentPrimaryKey.name]]
-                })
+                let newSelectOptions = this.getSelectOptionsWithAdditionalWhere(
+                    selectOptions,
+                    [childRelation.childColumn.name, row[childRelation.parentPrimaryKey.name]]);
+
+                return dataModel.select(newSelectOptions)
                     .then((r): q.Promise<any> => {
                         row[childRelation.parentAssociationName] = r;
-                        expandKeys.shift();
-                        return this.expand(expandKeys.join("/"), r);
+
+                        if (newSelectOptions.expand) {
+                            return this.expand(newSelectOptions, r);
+                        } else {
+                            return q.resolve(null);
+                        }
                     });
             });
         }
@@ -463,6 +485,21 @@ export class DataModel {
                 return dataModel.updateOrInsert(child);
             });
         });
+    }
+    private getSelectOptionsWithAdditionalWhere(selectOptions: dl.ISelectOptionsDataContext, where: any): dl.ISelectOptionsDataContext {
+        var newSelectOptions: dl.ISelectOptionsDataContext = {};
+
+        if (selectOptions) {
+            extend(true, newSelectOptions, selectOptions);
+        }
+
+        if (newSelectOptions.where) {
+            newSelectOptions.where = [newSelectOptions.where, where];
+        } else {
+            newSelectOptions.where = where;
+        }
+
+        return newSelectOptions;
     }
 
     private executeTrigger(itemToChange: any, eventVariable: string): q.Promise<any> {
