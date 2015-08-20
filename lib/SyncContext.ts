@@ -35,6 +35,9 @@ export interface ISyncOptions {
     deleteUrl?: string;
 
     serverPrimaryKey: dl.IColumn;
+
+    onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
+    onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
 }
 interface IDataModelSync {
     dataModel: dc.DataModel;
@@ -130,7 +133,7 @@ export class SyncContext {
         });
 
         dataModel.appendFixedWhere([ColMarkedAsDelete, false]);
-        
+
         dataModel.onBeforeInsert(this.checkSyncState);
         dataModel.onBeforeUpdate(this.checkSyncState);
     }
@@ -193,6 +196,9 @@ export class SyncContext {
                 where: where
             })
                 .then((r): q.Promise<any> => {
+                    return this.executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row);
+                })
+                .then((r): q.Promise<any> => {
                     row._isSyncActive = true;
 
                     if (r.length === 1) {
@@ -201,11 +207,27 @@ export class SyncContext {
                         return dataModelSync.dataModel.insert(row);
                     }
                 })
+                .then((r): q.Promise<any> => {
+                    return this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
+                })
                 .then((): q.Promise<any> => {
                     delete row._isSyncActive;
                     return q.resolve(null);
                 });
         });
+    }
+
+    private executeTrigger(dataModelSync: IDataModelSync, triggerName: string, row: any): q.Promise<any> {
+        if (!dataModelSync.syncOptions[triggerName]) {
+            return q.resolve(row);
+        }
+
+        var promise: q.Promise<any> = dataModelSync.syncOptions[triggerName](row);
+
+        return promise
+            .then((): q.Promise<any> => {
+                return row;
+            });
     }
 
     private saveSyncState(dataModelSync: IDataModelSync, date: Date): q.Promise<any> {
