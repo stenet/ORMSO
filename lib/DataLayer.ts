@@ -451,9 +451,9 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         if (Array.isArray(elements[0])) {
             if (elements.length == 1) {
-                return this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
+                return "(" + this.getSelectWhereComponent(tableInfo, parameters, elements[0]) + ")";
             } else if (Array.isArray(elements[1])) {
-                return elements.map((x): string => this.getSelectWhereComponent(tableInfo, parameters, x)).join(" and ");
+                return "(" + elements.map((x): string => this.getSelectWhereComponent(tableInfo, parameters, x)).join(" and ") + ")";
             } else if (elements.length >= 3) {
                 var result = this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
 
@@ -462,7 +462,7 @@ export class Sqlite3DataLayer implements IDataLayer {
                         + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
                 }
 
-                return result;
+                return "(" + result + ")";
             } else {
                 throw Error("Invalid filter " + JSON.stringify(where));
             }
