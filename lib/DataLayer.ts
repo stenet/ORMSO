@@ -221,7 +221,14 @@ export class Sqlite3DataLayer implements IDataLayer {
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any> {
         return this.select(tableInfo, {
             where: [tableInfo.primaryKey.name, id]
-        });
+        })
+            .then((r): q.Promise<any> => {
+                if (r.length > 0) {
+                    return q.resolve(r[0]);
+                } else {
+                    return q.resolve(null);
+                }
+            });
     }
     selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number> {
         var parameters = {};

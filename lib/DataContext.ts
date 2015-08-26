@@ -192,13 +192,6 @@ export class DataModel {
         return this.insert(itemToCreate)
             .then((): q.Promise<any[]> => {
                 return this.selectById(itemToCreate[this.tableInfo.primaryKey.name]);
-            })
-            .then((rows): q.Promise<any> => {
-                if (rows.length === 1) {
-                    return q.resolve(rows[0]);
-                } else {
-                    return q.resolve(null);
-                }
             });
     }
     /** Updates the item in the database */
@@ -230,13 +223,6 @@ export class DataModel {
         return this.update(itemToUpdate)
             .then((): q.Promise<any[]> => {
                 return this.selectById(itemToUpdate[this.tableInfo.primaryKey.name]);
-            })
-            .then((rows): q.Promise<any> => {
-                if (rows.length === 1) {
-                    return q.resolve(rows[0]);
-                } else {
-                    return q.resolve(null);
-                }
             });
     }
     /** Updates the item in the database */
@@ -266,9 +252,7 @@ export class DataModel {
             }
         })
             .then((r): q.Promise<any> => {
-                var arr: any[] = r;
-
-                if (arr && arr.length > 0) {
+                if (r) {
                     return this.update(item);
                 } else {
                     return this.insert(item);
