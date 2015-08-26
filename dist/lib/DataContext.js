@@ -164,14 +164,6 @@ var DataModel = (function () {
         return this.insert(itemToCreate)
             .then(function () {
             return _this.selectById(itemToCreate[_this.tableInfo.primaryKey.name]);
-        })
-            .then(function (rows) {
-            if (rows.length === 1) {
-                return q.resolve(rows[0]);
-            }
-            else {
-                return q.resolve(null);
-            }
         });
     };
     DataModel.prototype.update = function (itemToUpdate) {
@@ -201,14 +193,6 @@ var DataModel = (function () {
         return this.update(itemToUpdate)
             .then(function () {
             return _this.selectById(itemToUpdate[_this.tableInfo.primaryKey.name]);
-        })
-            .then(function (rows) {
-            if (rows.length === 1) {
-                return q.resolve(rows[0]);
-            }
-            else {
-                return q.resolve(null);
-            }
         });
     };
     DataModel.prototype.updateItems = function (valuesToUpdate, where) {
@@ -237,8 +221,7 @@ var DataModel = (function () {
             }
         })
             .then(function (r) {
-            var arr = r;
-            if (arr && arr.length > 0) {
+            if (r) {
                 return _this.update(item);
             }
             else {
