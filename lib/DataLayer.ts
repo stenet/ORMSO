@@ -550,6 +550,9 @@ export class Sqlite3DataLayer implements IDataLayer {
             if (val == null && column.defaultValue != null) {
                 val = column.defaultValue;
             }
+            if (val == null && column.dataType == DataTypes.bool) {
+                val = false;
+            }
 
             if (val == null) {
                 return;
