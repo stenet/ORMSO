@@ -25,5 +25,5 @@ export declare class SyncContext {
     private saveData(dataModelSync, rows);
     private executeTrigger(dataModelSync, triggerName, row);
     private saveSyncState(dataModelSync, date);
-    private checkSyncState(item);
+    private checkSyncState(args);
 }

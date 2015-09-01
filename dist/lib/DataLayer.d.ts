@@ -50,7 +50,7 @@ export interface IOrderBy {
     sort: OrderBySort;
 }
 export interface ISelectOptionsDataLayer {
-    columns?: IColumn[];
+    columns?: string[];
     where?: any;
     orderBy?: IOrderBy[];
     skip?: number;

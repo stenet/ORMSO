@@ -6,7 +6,7 @@ import request = require("request");
 import moment = require("moment");
 
 var ColDoSync = "DoSync";
-var ColMarkedAsDelete = "MarkAsDelete";
+var ColMarkedAsDeleted = "MarkAsDeleted";
 var ColTable = "TableName";
 var ColLastSync = "LastSync";
 
@@ -127,15 +127,21 @@ export class SyncContext {
             defaultValue: false
         });
         dataModel.tableInfo.table.columns.push({
-            name: ColMarkedAsDelete,
+            name: ColMarkedAsDeleted,
             dataType: dl.DataTypes.bool,
             defaultValue: false
         });
 
-        dataModel.appendFixedWhere([ColMarkedAsDelete, false]);
+        dataModel.appendFixedWhere([ColMarkedAsDeleted, false]);
 
         dataModel.onBeforeInsert(this.checkSyncState);
         dataModel.onBeforeUpdate(this.checkSyncState);
+        dataModel.onBeforeDelete((args): q.Promise<any> => {
+            args.item[ColMarkedAsDeleted] = true;
+            args.cancel = true;
+
+            return dataModel.delete(args.item);
+        });
     }
 
     private getDataModelSync(dataModel: dc.DataModel): IDataModelSync {
@@ -249,11 +255,11 @@ export class SyncContext {
                 }
             })
     }
-    private checkSyncState(item: any): q.Promise<any> {
-        if (item._isSyncActive) {
-            item[ColDoSync] = false;
+    private checkSyncState(args: dc.ITriggerArgs): q.Promise<any> {
+        if (args.item._isSyncActive) {
+            args.item[ColDoSync] = false;
         } else {
-            item[ColDoSync] = true;
+            args.item[ColDoSync] = true;
         }
 
         return q.resolve(null);

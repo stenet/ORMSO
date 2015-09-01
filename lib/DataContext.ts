@@ -3,6 +3,11 @@ import dl = require("./DataLayer");
 import q = require("q");
 import extend = require("extend");
 
+export interface ITriggerArgs {
+    item: any;
+    cancel: boolean;
+}
+
 export class DataContext {
     private _dataModels: DataModel[] = [];
     private _hasFinalizeDone: boolean = false;
@@ -127,39 +132,39 @@ export class DataModel {
     private _dataLayer: dl.IDataLayer;
     private _fixedWhere: any[] = [];
 
-    private _beforeInsertCallbacks: ((item: any) => q.Promise<any>)[] = [];
-    private _afterInsertCallbacks: ((item: any) => q.Promise<any>)[] = [];
-    private _beforeUpdateCallbacks: ((item: any) => q.Promise<any>)[] = [];
-    private _afterUpdateCallbacks: ((item: any) => q.Promise<any>)[] = [];
-    private _beforeDeleteCallbacks: ((item: any) => q.Promise<any>)[] = [];
-    private _afterDeleteCallbacks: ((item: any) => q.Promise<any>)[] = [];
+    private _beforeInsertCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
+    private _afterInsertCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
+    private _beforeUpdateCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
+    private _afterUpdateCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
+    private _beforeDeleteCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
+    private _afterDeleteCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
 
     constructor(public dataContext: DataContext, public tableInfo: dl.ITableInfo) {
         this._dataLayer = dataContext.dataLayer;
     }
 
     /** Add before insert callback */
-    onBeforeInsert(callback: (item: any) => q.Promise<any>) {
+    onBeforeInsert(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._beforeInsertCallbacks.push(callback);
     }
     /** Add after insert callback */
-    onAfterInsert(callback: (item: any) => q.Promise<any>) {
+    onAfterInsert(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._afterInsertCallbacks.push(callback);
     }
     /** Add before update callback */
-    onBeforeUpdate(callback: (item: any) => q.Promise<any>) {
+    onBeforeUpdate(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._beforeUpdateCallbacks.push(callback);
     }
     /** Add after update callback */
-    onAfterUpdate(callback: (item: any) => q.Promise<any>) {
+    onAfterUpdate(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._afterUpdateCallbacks.push(callback);
     }
     /** Add before delete callback */
-    onBeforeDelete(callback: (item: any) => q.Promise<any>) {
+    onBeforeDelete(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._beforeDeleteCallbacks.push(callback);
     }
     /** Add after delete callback */
-    onAfterDelete(callback: (item: any) => q.Promise<any>) {
+    onAfterDelete(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._afterDeleteCallbacks.push(callback);
     }
 
@@ -169,7 +174,12 @@ export class DataModel {
             return q.reject("No item to insert specified");
         }
 
-        return this.executeTrigger(itemToCreate, "_beforeInsertCallbacks")
+        var args: ITriggerArgs = {
+            item: itemToCreate,
+            cancel: false
+        }
+
+        return this.executeTrigger(args, "_beforeInsertCallbacks")
             .then((): q.Promise<any> => {
                 return this._dataLayer.insert(this.tableInfo, itemToCreate);
             })
@@ -177,7 +187,7 @@ export class DataModel {
                 return this.saveChildRelations(itemToCreate);
             })
             .then((): q.Promise<any> => {
-                return this.executeTrigger(itemToCreate, "_afterInsertCallbacks");
+                return this.executeTrigger(args, "_afterInsertCallbacks");
             })
             .then((): q.Promise<any> => {
                 return q.resolve(itemToCreate);
@@ -200,7 +210,12 @@ export class DataModel {
             return q.reject("No item to update specified");
         }
 
-        return this.executeTrigger(itemToUpdate, "_beforeUpdateCallbacks")
+        var args: ITriggerArgs = {
+            item: itemToUpdate,
+            cancel: false
+        }
+
+        return this.executeTrigger(args, "_beforeUpdateCallbacks")
             .then((): q.Promise<any> => {
                 return this._dataLayer.update(this.tableInfo, itemToUpdate);
             })
@@ -208,7 +223,7 @@ export class DataModel {
                 return this.saveChildRelations(itemToUpdate);
             })
             .then((): q.Promise<any> => {
-                return this.executeTrigger(itemToUpdate, "_afterUpdateCallbacks");
+                return this.executeTrigger(args, "_afterUpdateCallbacks");
             })
             .then((): q.Promise<any> => {
                 return q.resolve(itemToUpdate);
@@ -275,12 +290,17 @@ export class DataModel {
             return q.reject("No item to delete specified");
         }
 
-        return this.executeTrigger(itemToDelete, "_beforeDeleteCallbacks")
+        var args: ITriggerArgs = {
+            item: itemToDelete,
+            cancel: false
+        }
+
+        return this.executeTrigger(args, "_beforeDeleteCallbacks")
             .then((): q.Promise<any> => {
                 return this._dataLayer.delete(this.tableInfo, itemToDelete);
             })
             .then((): q.Promise<any> => {
-                return this.executeTrigger(itemToDelete, "_afterDeleteCallbacks");
+                return this.executeTrigger(args, "_afterDeleteCallbacks");
             });
     }
     /** Selects the item by its id */
@@ -440,6 +460,9 @@ export class DataModel {
                 return dataModel.select(newSelectOptions)
                     .then((r): q.Promise<any> => {
                         row[childRelation.parentAssociationName] = r;
+                        row["__" + childRelation.parentAssociationName] = r.map((item): any => {
+                            return item[childRelation.childTableInfo.primaryKey.name];
+                        });
 
                         if (newSelectOptions.expand) {
                             return this.expand(newSelectOptions, r);
@@ -458,15 +481,48 @@ export class DataModel {
                 return q.resolve(null);
             }
 
-            var children = row[relation.parentAssociationName];
-            if (!Array.isArray(children)) {
-                return q.resolve(null);
-            }
-
             var dataModel = this.dataContext.getDataModel(relation.childTableInfo.table);
-            return h.Helpers.qSequential(children, (child) => {
-                child[relation.childColumn.name] = row[relation.parentPrimaryKey.name];
-                return dataModel.updateOrInsert(child);
+            var children: any[] = row[relation.parentAssociationName];
+
+            return q.fcall((): q.Promise<any> => {
+                if (!Array.isArray(children)) {
+                    return q.resolve(null);
+                }
+
+                return h.Helpers.qSequential(children, (child) => {
+                    child[relation.childColumn.name] = row[relation.parentPrimaryKey.name];
+                    return dataModel.updateOrInsert(child);
+                });
+            })
+            .then((): q.Promise<any> => {
+                var childrenPrevious: any[] = row["__" + relation.parentAssociationName];
+
+                if (!Array.isArray(childrenPrevious)) {
+                    return q.resolve(null);
+                }
+
+                var toDelete: any[] = [];
+                childrenPrevious.forEach((item): void => {
+                    if (Array.isArray(children)) {
+                        var exists = children.some((child): boolean => {
+                            return child[relation.childTableInfo.primaryKey.name] == item;
+                        });
+
+                        if (!exists) {
+                            toDelete.push(item);
+                        }
+                    } else {
+                        toDelete.push(item);
+                    }
+                });
+
+                return h.Helpers.qSequential(toDelete, (child) => {
+                    return dataModel
+                        .selectById(child)
+                        .then((r): q.Promise<any> => {
+                            return dataModel.delete(r);
+                        });
+                });
             });
         });
     }
@@ -486,7 +542,7 @@ export class DataModel {
         return newSelectOptions;
     }
 
-    private executeTrigger(itemToChange: any, eventVariable: string): q.Promise<any> {
+    private executeTrigger(args: ITriggerArgs, eventVariable: string): q.Promise<any> {
         if (!this[eventVariable]) {
             throw Error("EventVariable " + eventVariable + " does not exist");
         }
@@ -500,8 +556,8 @@ export class DataModel {
             callbacks = [].concat(callbacks).concat(baseModel[eventVariable]);
         });
 
-        return h.Helpers.qSequential(callbacks, (item: ((item: any) => q.Promise<any>)) => {
-            return item(itemToChange);
+        return h.Helpers.qSequential(callbacks, (item: ((args: ITriggerArgs) => q.Promise<any>)) => {
+            return item(args);
         });
     }
 }

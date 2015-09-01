@@ -1,5 +1,9 @@
 import dl = require("./DataLayer");
 import q = require("q");
+export interface ITriggerArgs {
+    item: any;
+    cancel: boolean;
+}
 export declare class DataContext {
     dataLayer: dl.IDataLayer;
     private _dataModels;
@@ -28,12 +32,12 @@ export declare class DataModel {
     private _beforeDeleteCallbacks;
     private _afterDeleteCallbacks;
     constructor(dataContext: DataContext, tableInfo: dl.ITableInfo);
-    onBeforeInsert(callback: (item: any) => q.Promise<any>): void;
-    onAfterInsert(callback: (item: any) => q.Promise<any>): void;
-    onBeforeUpdate(callback: (item: any) => q.Promise<any>): void;
-    onAfterUpdate(callback: (item: any) => q.Promise<any>): void;
-    onBeforeDelete(callback: (item: any) => q.Promise<any>): void;
-    onAfterDelete(callback: (item: any) => q.Promise<any>): void;
+    onBeforeInsert(callback: (args: ITriggerArgs) => q.Promise<any>): void;
+    onAfterInsert(callback: (args: ITriggerArgs) => q.Promise<any>): void;
+    onBeforeUpdate(callback: (args: ITriggerArgs) => q.Promise<any>): void;
+    onAfterUpdate(callback: (args: ITriggerArgs) => q.Promise<any>): void;
+    onBeforeDelete(callback: (args: ITriggerArgs) => q.Promise<any>): void;
+    onAfterDelete(callback: (args: ITriggerArgs) => q.Promise<any>): void;
     insert(itemToCreate: any): q.Promise<any>;
     insertAndSelect(itemToCreate: any): q.Promise<any>;
     update(itemToUpdate: any): q.Promise<any>;
@@ -54,5 +58,5 @@ export declare class DataModel {
     private expandRelation(relationName, selectOptions, rows);
     private saveChildRelations(row);
     private getSelectOptionsWithAdditionalWhere(selectOptions, where);
-    private executeTrigger(itemToChange, eventVariable);
+    private executeTrigger(args, eventVariable);
 }

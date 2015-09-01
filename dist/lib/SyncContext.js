@@ -5,7 +5,7 @@ var q = require("q");
 var request = require("request");
 var moment = require("moment");
 var ColDoSync = "DoSync";
-var ColMarkedAsDelete = "MarkAsDelete";
+var ColMarkedAsDeleted = "MarkAsDeleted";
 var ColTable = "TableName";
 var ColLastSync = "LastSync";
 var ctx = new dc.DataContext(new dl.Sqlite3DataLayer("sync.db"));
@@ -97,13 +97,18 @@ var SyncContext = (function () {
             defaultValue: false
         });
         dataModel.tableInfo.table.columns.push({
-            name: ColMarkedAsDelete,
+            name: ColMarkedAsDeleted,
             dataType: dl.DataTypes.bool,
             defaultValue: false
         });
-        dataModel.appendFixedWhere([ColMarkedAsDelete, false]);
+        dataModel.appendFixedWhere([ColMarkedAsDeleted, false]);
         dataModel.onBeforeInsert(this.checkSyncState);
         dataModel.onBeforeUpdate(this.checkSyncState);
+        dataModel.onBeforeDelete(function (args) {
+            args.item[ColMarkedAsDeleted] = true;
+            args.cancel = true;
+            return dataModel.delete(args.item);
+        });
     };
     SyncContext.prototype.getDataModelSync = function (dataModel) {
         var items = this._dataModelSyncs.filter(function (item) {
@@ -206,12 +211,12 @@ var SyncContext = (function () {
             }
         });
     };
-    SyncContext.prototype.checkSyncState = function (item) {
-        if (item._isSyncActive) {
-            item[ColDoSync] = false;
+    SyncContext.prototype.checkSyncState = function (args) {
+        if (args.item._isSyncActive) {
+            args.item[ColDoSync] = false;
         }
         else {
-            item[ColDoSync] = true;
+            args.item[ColDoSync] = true;
         }
         return q.resolve(null);
     };

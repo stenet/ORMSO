@@ -142,7 +142,11 @@ var DataModel = (function () {
         if (!itemToCreate) {
             return q.reject("No item to insert specified");
         }
-        return this.executeTrigger(itemToCreate, "_beforeInsertCallbacks")
+        var args = {
+            item: itemToCreate,
+            cancel: false
+        };
+        return this.executeTrigger(args, "_beforeInsertCallbacks")
             .then(function () {
             return _this._dataLayer.insert(_this.tableInfo, itemToCreate);
         })
@@ -150,7 +154,7 @@ var DataModel = (function () {
             return _this.saveChildRelations(itemToCreate);
         })
             .then(function () {
-            return _this.executeTrigger(itemToCreate, "_afterInsertCallbacks");
+            return _this.executeTrigger(args, "_afterInsertCallbacks");
         })
             .then(function () {
             return q.resolve(itemToCreate);
@@ -171,7 +175,11 @@ var DataModel = (function () {
         if (!itemToUpdate) {
             return q.reject("No item to update specified");
         }
-        return this.executeTrigger(itemToUpdate, "_beforeUpdateCallbacks")
+        var args = {
+            item: itemToUpdate,
+            cancel: false
+        };
+        return this.executeTrigger(args, "_beforeUpdateCallbacks")
             .then(function () {
             return _this._dataLayer.update(_this.tableInfo, itemToUpdate);
         })
@@ -179,7 +187,7 @@ var DataModel = (function () {
             return _this.saveChildRelations(itemToUpdate);
         })
             .then(function () {
-            return _this.executeTrigger(itemToUpdate, "_afterUpdateCallbacks");
+            return _this.executeTrigger(args, "_afterUpdateCallbacks");
         })
             .then(function () {
             return q.resolve(itemToUpdate);
@@ -244,12 +252,16 @@ var DataModel = (function () {
         if (!itemToDelete) {
             return q.reject("No item to delete specified");
         }
-        return this.executeTrigger(itemToDelete, "_beforeDeleteCallbacks")
+        var args = {
+            item: itemToDelete,
+            cancel: false
+        };
+        return this.executeTrigger(args, "_beforeDeleteCallbacks")
             .then(function () {
             return _this._dataLayer.delete(_this.tableInfo, itemToDelete);
         })
             .then(function () {
-            return _this.executeTrigger(itemToDelete, "_afterDeleteCallbacks");
+            return _this.executeTrigger(args, "_afterDeleteCallbacks");
         });
     };
     DataModel.prototype.selectById = function (id) {
@@ -376,6 +388,9 @@ var DataModel = (function () {
                 return dataModel.select(newSelectOptions)
                     .then(function (r) {
                     row[childRelation.parentAssociationName] = r;
+                    row["__" + childRelation.parentAssociationName] = r.map(function (item) {
+                        return item[childRelation.childTableInfo.primaryKey.name];
+                    });
                     if (newSelectOptions.expand) {
                         return _this.expand(newSelectOptions, r);
                     }
@@ -393,14 +408,43 @@ var DataModel = (function () {
             if (!row[relation.parentAssociationName]) {
                 return q.resolve(null);
             }
-            var children = row[relation.parentAssociationName];
-            if (!Array.isArray(children)) {
-                return q.resolve(null);
-            }
             var dataModel = _this.dataContext.getDataModel(relation.childTableInfo.table);
-            return h.Helpers.qSequential(children, function (child) {
-                child[relation.childColumn.name] = row[relation.parentPrimaryKey.name];
-                return dataModel.updateOrInsert(child);
+            var children = row[relation.parentAssociationName];
+            return q.fcall(function () {
+                if (!Array.isArray(children)) {
+                    return q.resolve(null);
+                }
+                return h.Helpers.qSequential(children, function (child) {
+                    child[relation.childColumn.name] = row[relation.parentPrimaryKey.name];
+                    return dataModel.updateOrInsert(child);
+                });
+            })
+                .then(function () {
+                var childrenPrevious = row["__" + relation.parentAssociationName];
+                if (!Array.isArray(childrenPrevious)) {
+                    return q.resolve(null);
+                }
+                var toDelete = [];
+                childrenPrevious.forEach(function (item) {
+                    if (Array.isArray(children)) {
+                        var exists = children.some(function (child) {
+                            return child[relation.childTableInfo.primaryKey.name] == item;
+                        });
+                        if (!exists) {
+                            toDelete.push(item);
+                        }
+                    }
+                    else {
+                        toDelete.push(item);
+                    }
+                });
+                return h.Helpers.qSequential(toDelete, function (child) {
+                    return dataModel
+                        .selectById(child)
+                        .then(function (r) {
+                        return dataModel.delete(r);
+                    });
+                });
             });
         });
     };
@@ -417,7 +461,7 @@ var DataModel = (function () {
         }
         return newSelectOptions;
     };
-    DataModel.prototype.executeTrigger = function (itemToChange, eventVariable) {
+    DataModel.prototype.executeTrigger = function (args, eventVariable) {
         var _this = this;
         if (!this[eventVariable]) {
             throw Error("EventVariable " + eventVariable + " does not exist");
@@ -429,7 +473,7 @@ var DataModel = (function () {
             callbacks = [].concat(callbacks).concat(baseModel[eventVariable]);
         });
         return h.Helpers.qSequential(callbacks, function (item) {
-            return item(itemToChange);
+            return item(args);
         });
     };
     return DataModel;

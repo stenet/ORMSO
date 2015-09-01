@@ -67,7 +67,7 @@ export interface IOrderBy {
     sort: OrderBySort;
 }
 export interface ISelectOptionsDataLayer {
-    columns?: IColumn[],
+    columns?: string[],
     where?: any,
     orderBy?: IOrderBy[],
     skip?: number;
@@ -397,8 +397,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             return token + "*";
         }
 
-        return token + selectOptions.columns.map((column): string => column.name)
-            .join(", ");
+        return token + selectOptions.columns.join(", ");
     }
     private getSelectFrom(table: ITable): string {
         return "from " + table.name;
