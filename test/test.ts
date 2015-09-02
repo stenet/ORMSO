@@ -73,6 +73,53 @@ describe("Data Model (Functions)", () => {
                 chai.assert.equal(i.Profiles[0].IdUser, i.Id);
             });
     });
+    it("Should delete Profile inside User", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "stefan",
+                    FirstName: "Stefan",
+                    LastName: "Heim",
+                    Profiles: [
+                        { IdProfile: null },
+                        { IdProfile: null }
+                    ]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.select({
+                    where: ["Id", r.Id],
+                    expand: {
+                        Profiles: null
+                    }
+                });
+            })
+            .then((r): q.Promise<any> => {
+                var i = r[0];
+
+                chai.assert.property(i, "Profiles");
+                chai.assert.equal(i.Profiles.length, 2);
+
+                var profiles: any[] = i.Profiles;
+                profiles.splice(0, 1);
+
+                return tc.users.updateAndSelect(i);
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.select({
+                    where: ["Id", r.Id],
+                    expand: {
+                        Profiles: null
+                    }
+                });
+            })
+            .then((r): void => {
+                var i = r[0];
+
+                chai.assert.property(i, "Profiles");
+                chai.assert.equal(i.Profiles.length, 1);
+            });
+    });
     it("Testing selectCount", () => {
         return tc.finalized
             .then((): q.Promise<any> => {

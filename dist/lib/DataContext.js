@@ -148,12 +148,21 @@ var DataModel = (function () {
         };
         return this.executeTrigger(args, "_beforeInsertCallbacks")
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this._dataLayer.insert(_this.tableInfo, itemToCreate);
         })
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this.saveChildRelations(itemToCreate);
         })
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this.executeTrigger(args, "_afterInsertCallbacks");
         })
             .then(function () {
@@ -181,12 +190,21 @@ var DataModel = (function () {
         };
         return this.executeTrigger(args, "_beforeUpdateCallbacks")
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this._dataLayer.update(_this.tableInfo, itemToUpdate);
         })
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this.saveChildRelations(itemToUpdate);
         })
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this.executeTrigger(args, "_afterUpdateCallbacks");
         })
             .then(function () {
@@ -258,9 +276,15 @@ var DataModel = (function () {
         };
         return this.executeTrigger(args, "_beforeDeleteCallbacks")
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this._dataLayer.delete(_this.tableInfo, itemToDelete);
         })
             .then(function () {
+            if (args.cancel) {
+                return q.resolve(null);
+            }
             return _this.executeTrigger(args, "_afterDeleteCallbacks");
         });
     };

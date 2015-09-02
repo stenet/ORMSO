@@ -65,6 +65,49 @@ describe("Data Model (Functions)", function () {
             chai.assert.equal(i.Profiles[0].IdUser, i.Id);
         });
     });
+    it("Should delete Profile inside User", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "stefan",
+                FirstName: "Stefan",
+                LastName: "Heim",
+                Profiles: [
+                    { IdProfile: null },
+                    { IdProfile: null }
+                ]
+            });
+        })
+            .then(function (r) {
+            return tc.users.select({
+                where: ["Id", r.Id],
+                expand: {
+                    Profiles: null
+                }
+            });
+        })
+            .then(function (r) {
+            var i = r[0];
+            chai.assert.property(i, "Profiles");
+            chai.assert.equal(i.Profiles.length, 2);
+            var profiles = i.Profiles;
+            profiles.splice(0, 1);
+            return tc.users.updateAndSelect(i);
+        })
+            .then(function (r) {
+            return tc.users.select({
+                where: ["Id", r.Id],
+                expand: {
+                    Profiles: null
+                }
+            });
+        })
+            .then(function (r) {
+            var i = r[0];
+            chai.assert.property(i, "Profiles");
+            chai.assert.equal(i.Profiles.length, 1);
+        });
+    });
     it("Testing selectCount", function () {
         return tc.finalized
             .then(function () {

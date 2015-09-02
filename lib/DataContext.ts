@@ -181,12 +181,24 @@ export class DataModel {
 
         return this.executeTrigger(args, "_beforeInsertCallbacks")
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this._dataLayer.insert(this.tableInfo, itemToCreate);
             })
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this.saveChildRelations(itemToCreate);
             })
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this.executeTrigger(args, "_afterInsertCallbacks");
             })
             .then((): q.Promise<any> => {
@@ -217,12 +229,24 @@ export class DataModel {
 
         return this.executeTrigger(args, "_beforeUpdateCallbacks")
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this._dataLayer.update(this.tableInfo, itemToUpdate);
             })
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this.saveChildRelations(itemToUpdate);
             })
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this.executeTrigger(args, "_afterUpdateCallbacks");
             })
             .then((): q.Promise<any> => {
@@ -297,9 +321,17 @@ export class DataModel {
 
         return this.executeTrigger(args, "_beforeDeleteCallbacks")
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this._dataLayer.delete(this.tableInfo, itemToDelete);
             })
             .then((): q.Promise<any> => {
+                if (args.cancel) {
+                    return q.resolve(null);
+                }
+
                 return this.executeTrigger(args, "_afterDeleteCallbacks");
             });
     }
@@ -327,7 +359,7 @@ export class DataModel {
                                 rows: r,
                                 count: c
                             });
-                        }); 
+                        });
                 } else {
                     return q.resolve(r);
                 }
@@ -430,7 +462,7 @@ export class DataModel {
                     .then((r): q.Promise<any> => {
                         if (r.length === 1) {
                             row[parentRelation.childAssociationName] = r[0];
-                            
+
                             if (newSelectOptions.expand) {
                                 return this.expand(newSelectOptions, r);
                             } else {
@@ -494,36 +526,36 @@ export class DataModel {
                     return dataModel.updateOrInsert(child);
                 });
             })
-            .then((): q.Promise<any> => {
-                var childrenPrevious: any[] = row["__" + relation.parentAssociationName];
+                .then((): q.Promise<any> => {
+                    var childrenPrevious: any[] = row["__" + relation.parentAssociationName];
 
-                if (!Array.isArray(childrenPrevious)) {
-                    return q.resolve(null);
-                }
+                    if (!Array.isArray(childrenPrevious)) {
+                        return q.resolve(null);
+                    }
 
-                var toDelete: any[] = [];
-                childrenPrevious.forEach((item): void => {
-                    if (Array.isArray(children)) {
-                        var exists = children.some((child): boolean => {
-                            return child[relation.childTableInfo.primaryKey.name] == item;
-                        });
+                    var toDelete: any[] = [];
+                    childrenPrevious.forEach((item): void => {
+                        if (Array.isArray(children)) {
+                            var exists = children.some((child): boolean => {
+                                return child[relation.childTableInfo.primaryKey.name] == item;
+                            });
 
-                        if (!exists) {
+                            if (!exists) {
+                                toDelete.push(item);
+                            }
+                        } else {
                             toDelete.push(item);
                         }
-                    } else {
-                        toDelete.push(item);
-                    }
-                });
+                    });
 
-                return h.Helpers.qSequential(toDelete, (child) => {
-                    return dataModel
-                        .selectById(child)
-                        .then((r): q.Promise<any> => {
-                            return dataModel.delete(r);
-                        });
+                    return h.Helpers.qSequential(toDelete, (child) => {
+                        return dataModel
+                            .selectById(child)
+                            .then((r): q.Promise<any> => {
+                                return dataModel.delete(r);
+                            });
+                    });
                 });
-            });
         });
     }
     private getSelectOptionsWithAdditionalWhere(selectOptions: dl.ISelectOptionsDataContext, where: any): dl.ISelectOptionsDataContext {

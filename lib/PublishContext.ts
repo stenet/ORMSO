@@ -50,8 +50,28 @@ export class PublishContext {
     private addDataModelPost(name: string, dataModel: dc.DataModel): void {
         this._router.post("/" + name, (req, res): void => {
             dataModel.updateOrInsertAndSelect(req.body)
+                .then((r): q.Promise<any> => {
+                    if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
+                        var selectOptions: dl.ISelectOptionsDataContext = JSON.parse(req.query.options);
+                        selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
+
+                        return dataModel.select(selectOptions);
+                    } else {
+                        return q.resolve(r);
+                    }
+                })
                 .then((r): void => {
-                    res.json(r);
+                    if (Array.isArray(r)) {
+                        var arr: any[] = r;
+
+                        if (arr.length > 0) {
+                            res.json(arr[0]);
+                        } else {
+                            res.json(r);
+                        }
+                    } else {
+                        res.json(r);
+                    }
                 })
                 .done();
         });
@@ -59,8 +79,28 @@ export class PublishContext {
     private addDataModelPatch(name: string, dataModel: dc.DataModel): void {
         this._router.patch("/" + name, (req, res): void => {
             dataModel.updateAndSelect(req.body)
+                .then((r): q.Promise<any> => {
+                    if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
+                        var selectOptions: dl.ISelectOptionsDataContext = JSON.parse(req.query.options);
+                        selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
+
+                        return dataModel.select(selectOptions);
+                    } else {
+                        return q.resolve(r);
+                    }
+                })
                 .then((r): void => {
-                    res.json(r);
+                    if (Array.isArray(r)) {
+                        var arr: any[] = r;
+
+                        if (arr.length > 0) {
+                            res.json(arr[0]);
+                        } else {
+                            res.json(r);
+                        }
+                    } else {
+                        res.json(r);
+                    }
                 })
                 .done();
         });
@@ -68,8 +108,28 @@ export class PublishContext {
     private addDataModelPut(name: string, dataModel: dc.DataModel): void {
         this._router.put("/" + name, (req, res): void => {
             dataModel.insertAndSelect(req.body)
+                .then((r): q.Promise<any> => {
+                    if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
+                        var selectOptions: dl.ISelectOptionsDataContext = JSON.parse(req.query.options);
+                        selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
+
+                        return dataModel.select(selectOptions);
+                    } else {
+                        return q.resolve(r);
+                    }
+                })
                 .then((r): void => {
-                    res.json(r);
+                    if (Array.isArray(r)) {
+                        var arr: any[] = r;
+
+                        if (arr.length > 0) {
+                            res.json(arr[0]);
+                        } else {
+                            res.json(r);
+                        }
+                    } else {
+                        res.json(r);
+                    }
                 })
                 .done();
         });
