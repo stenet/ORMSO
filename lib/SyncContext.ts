@@ -140,7 +140,7 @@ export class SyncContext {
             args.item[ColMarkedAsDeleted] = true;
             args.cancel = true;
 
-            return dataModel.delete(args.item);
+            return dataModel.update(args.item);
         });
     }
 

@@ -107,7 +107,7 @@ var SyncContext = (function () {
         dataModel.onBeforeDelete(function (args) {
             args.item[ColMarkedAsDeleted] = true;
             args.cancel = true;
-            return dataModel.delete(args.item);
+            return dataModel.update(args.item);
         });
     };
     SyncContext.prototype.getDataModelSync = function (dataModel) {
