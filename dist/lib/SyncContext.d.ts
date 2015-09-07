@@ -8,6 +8,7 @@ export interface ISyncOptions {
     serverPrimaryKey: dl.IColumn;
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
+    onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
 }
 export declare class SyncContext {
     private _dataModelSyncs;
@@ -23,6 +24,8 @@ export declare class SyncContext {
     private getLoadUrl(dataModelSync);
     private loadData(url);
     private saveData(dataModelSync, rows);
+    private postData(dataModelSync);
+    private postDataToServer(dataModelSync, data);
     private executeTrigger(dataModelSync, triggerName, row);
     private saveSyncState(dataModelSync, date);
     private checkSyncState(args);

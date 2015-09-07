@@ -38,6 +38,7 @@ export interface ISyncOptions {
 
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
+    onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
 }
 interface IDataModelSync {
     dataModel: dc.DataModel;
@@ -88,9 +89,13 @@ export class SyncContext {
         var syncStart = new Date();
 
         return finalizeThen
+            .then((): q.Promise<any> => {
+                return this.postData(dataModelSync);
+            })
             .then((): q.Promise<string> => {
                 return this.getLoadUrl(dataModelSync);
-            }).then((r): q.Promise<any[]> => {
+            })
+            .then((r): q.Promise<any[]> => {
                 return this.loadData(r);
             })
             .then((r): q.Promise<any> => {
@@ -100,6 +105,11 @@ export class SyncContext {
                 return this.saveSyncState(dataModelSync, syncStart);
             })
             .then((): q.Promise<any> => {
+                this._isSyncActive = false;
+                return q.resolve(null);
+            })
+            .catch((r): q.Promise<any> => {
+                console.log(r);
                 this._isSyncActive = false;
                 return q.resolve(null);
             });
@@ -116,6 +126,11 @@ export class SyncContext {
         })
             .then((): q.Promise<any> => {
                 this._isSyncActiveAll = false;
+                return q.resolve(null);
+            })
+            .catch((r): q.Promise<any> => {
+                this._isSyncActiveAll = false;
+                console.log(r);
                 return q.resolve(null);
             });
     }
@@ -169,7 +184,7 @@ export class SyncContext {
                         loadUrl += "?";
                     }
 
-                    return q.resolve(loadUrl + "changedSince=" + moment(r[0].LastSync).format());
+                    return q.resolve(loadUrl + "changedSince=" + encodeURIComponent(moment(r[0].LastSync).format()));
                 } else {
                     return q.resolve(loadUrl);
                 }
@@ -221,6 +236,64 @@ export class SyncContext {
                     return q.resolve(null);
                 });
         });
+    }
+
+    private postData(dataModelSync: IDataModelSync): q.Promise<any> {
+        if (!dataModelSync.syncOptions.postUrl) {
+            return q.resolve(null);
+        }
+
+        var selectOptions: dl.ISelectOptionsDataContext = {
+            where: [ColDoSync, true]
+        };
+
+        return dataModelSync
+            .dataModel
+            .select(selectOptions)
+            .then((r: any[]): q.Promise<any> => {
+                return h.Helpers.qSequential(r, (item): q.Promise<any> => {
+                    return this.postDataToServer(dataModelSync, item);
+                });
+            });
+    }
+    private postDataToServer(dataModelSync: IDataModelSync, data: any): q.Promise<any> {
+        var def = q.defer<any>();
+
+        var method = data[ColMarkedAsDeleted] == true
+            ? "DELETE"
+            : "POST";
+
+        request({
+            method: "POST",
+            url: dataModelSync.syncOptions.postUrl,
+            body: JSON.stringify(data)
+        }, (err, res, body): void => {
+            if (err) {
+                def.resolve(err);
+                return;
+            }
+
+            body = JSON.parse(body);
+            body[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
+            body[ColDoSync] = false;
+
+            body._isSyncActive = true;
+            
+            dataModelSync
+                .dataModel
+                .updateAndSelect(body)
+                .then((r) => {
+                    return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
+                })
+                .then((r) => {
+                    def.resolve(true);
+                })
+                .catch((r): void => {
+                    def.reject(r);
+                });
+        });
+
+        return def.promise;
     }
 
     private executeTrigger(dataModelSync: IDataModelSync, triggerName: string, row: any): q.Promise<any> {

@@ -61,8 +61,12 @@ var SyncContext = (function () {
         var syncStart = new Date();
         return finalizeThen
             .then(function () {
+            return _this.postData(dataModelSync);
+        })
+            .then(function () {
             return _this.getLoadUrl(dataModelSync);
-        }).then(function (r) {
+        })
+            .then(function (r) {
             return _this.loadData(r);
         })
             .then(function (r) {
@@ -72,6 +76,11 @@ var SyncContext = (function () {
             return _this.saveSyncState(dataModelSync, syncStart);
         })
             .then(function () {
+            _this._isSyncActive = false;
+            return q.resolve(null);
+        })
+            .catch(function (r) {
+            console.log(r);
             _this._isSyncActive = false;
             return q.resolve(null);
         });
@@ -87,6 +96,11 @@ var SyncContext = (function () {
         })
             .then(function () {
             _this._isSyncActiveAll = false;
+            return q.resolve(null);
+        })
+            .catch(function (r) {
+            _this._isSyncActiveAll = false;
+            console.log(r);
             return q.resolve(null);
         });
     };
@@ -132,7 +146,7 @@ var SyncContext = (function () {
                 else {
                     loadUrl += "?";
                 }
-                return q.resolve(loadUrl + "changedSince=" + moment(r[0].LastSync).format());
+                return q.resolve(loadUrl + "changedSince=" + encodeURIComponent(moment(r[0].LastSync).format()));
             }
             else {
                 return q.resolve(loadUrl);
@@ -182,6 +196,57 @@ var SyncContext = (function () {
                 return q.resolve(null);
             });
         });
+    };
+    SyncContext.prototype.postData = function (dataModelSync) {
+        var _this = this;
+        if (!dataModelSync.syncOptions.postUrl) {
+            return q.resolve(null);
+        }
+        var selectOptions = {
+            where: [ColDoSync, true]
+        };
+        return dataModelSync
+            .dataModel
+            .select(selectOptions)
+            .then(function (r) {
+            return h.Helpers.qSequential(r, function (item) {
+                return _this.postDataToServer(dataModelSync, item);
+            });
+        });
+    };
+    SyncContext.prototype.postDataToServer = function (dataModelSync, data) {
+        var _this = this;
+        var def = q.defer();
+        var method = data[ColMarkedAsDeleted] == true
+            ? "DELETE"
+            : "POST";
+        request({
+            method: "POST",
+            url: dataModelSync.syncOptions.postUrl,
+            body: JSON.stringify(data)
+        }, function (err, res, body) {
+            if (err) {
+                def.resolve(err);
+                return;
+            }
+            body = JSON.parse(body);
+            body[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
+            body[ColDoSync] = false;
+            body._isSyncActive = true;
+            dataModelSync
+                .dataModel
+                .updateAndSelect(body)
+                .then(function (r) {
+                return _this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
+            })
+                .then(function (r) {
+                def.resolve(true);
+            })
+                .catch(function (r) {
+                def.reject(r);
+            });
+        });
+        return def.promise;
     };
     SyncContext.prototype.executeTrigger = function (dataModelSync, triggerName, row) {
         if (!dataModelSync.syncOptions[triggerName]) {
