@@ -27,13 +27,9 @@ export class PublishContext {
 
     private addDataModelGet(name: string, dataModel: dc.DataModel): void {
         this._router.get("/" + name, (req, res): void => {
-            var selectOptions = req.body;
+            var selectOptions = this.getSelectOptions(req);
 
-            if (req.query.options) {
-                selectOptions = JSON.parse(req.query.options);
-            }
-
-            dataModel.select(selectOptions)
+            dataModel.select(selectOptions || {})
                 .then((r): void => {
                     res.json(r);
                 })
@@ -51,8 +47,9 @@ export class PublishContext {
         this._router.post("/" + name, (req, res): void => {
             dataModel.updateOrInsertAndSelect(req.body)
                 .then((r): q.Promise<any> => {
-                    if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
-                        var selectOptions: dl.ISelectOptionsDataContext = JSON.parse(req.query.options);
+                    var selectOptions = this.getSelectOptions(req);
+
+                    if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                         selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
 
                         return dataModel.select(selectOptions);
@@ -80,8 +77,9 @@ export class PublishContext {
         this._router.patch("/" + name, (req, res): void => {
             dataModel.updateAndSelect(req.body)
                 .then((r): q.Promise<any> => {
-                    if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
-                        var selectOptions: dl.ISelectOptionsDataContext = JSON.parse(req.query.options);
+                    var selectOptions = this.getSelectOptions(req);                
+
+                    if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                         selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
 
                         return dataModel.select(selectOptions);
@@ -109,8 +107,9 @@ export class PublishContext {
         this._router.put("/" + name, (req, res): void => {
             dataModel.insertAndSelect(req.body)
                 .then((r): q.Promise<any> => {
-                    if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
-                        var selectOptions: dl.ISelectOptionsDataContext = JSON.parse(req.query.options);
+                var selectOptions = this.getSelectOptions(req); 
+
+                    if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                         selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
 
                         return dataModel.select(selectOptions);
@@ -133,6 +132,19 @@ export class PublishContext {
                 })
                 .done();
         });
+    }
+
+    private getSelectOptions(req: express.Request): dl.ISelectOptionsDataContext {
+        var selectOptions: dl.ISelectOptionsDataContext = null;
+
+        if (req.header("X-Get-Options")) {
+            selectOptions = JSON.parse(req.header("X-Get-Options"));
+        }
+        if (req.query.options) {
+            selectOptions = JSON.parse(req.query.options);
+        }
+
+        return selectOptions;
     }
 
     private addSyncContextGet(name: string, syncContext: sc.SyncContext): void {

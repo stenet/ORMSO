@@ -17,12 +17,10 @@ var PublishContext = (function () {
         return this._router;
     };
     PublishContext.prototype.addDataModelGet = function (name, dataModel) {
+        var _this = this;
         this._router.get("/" + name, function (req, res) {
-            var selectOptions = req.body;
-            if (req.query.options) {
-                selectOptions = JSON.parse(req.query.options);
-            }
-            dataModel.select(selectOptions)
+            var selectOptions = _this.getSelectOptions(req);
+            dataModel.select(selectOptions || {})
                 .then(function (r) {
                 res.json(r);
             })
@@ -37,11 +35,12 @@ var PublishContext = (function () {
         });
     };
     PublishContext.prototype.addDataModelPost = function (name, dataModel) {
+        var _this = this;
         this._router.post("/" + name, function (req, res) {
             dataModel.updateOrInsertAndSelect(req.body)
                 .then(function (r) {
-                if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
-                    var selectOptions = JSON.parse(req.query.options);
+                var selectOptions = _this.getSelectOptions(req);
+                if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                     selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
                     return dataModel.select(selectOptions);
                 }
@@ -67,11 +66,12 @@ var PublishContext = (function () {
         });
     };
     PublishContext.prototype.addDataModelPatch = function (name, dataModel) {
+        var _this = this;
         this._router.patch("/" + name, function (req, res) {
             dataModel.updateAndSelect(req.body)
                 .then(function (r) {
-                if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
-                    var selectOptions = JSON.parse(req.query.options);
+                var selectOptions = _this.getSelectOptions(req);
+                if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                     selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
                     return dataModel.select(selectOptions);
                 }
@@ -97,11 +97,12 @@ var PublishContext = (function () {
         });
     };
     PublishContext.prototype.addDataModelPut = function (name, dataModel) {
+        var _this = this;
         this._router.put("/" + name, function (req, res) {
             dataModel.insertAndSelect(req.body)
                 .then(function (r) {
-                if (r && req.query.options && r[dataModel.tableInfo.primaryKey.name]) {
-                    var selectOptions = JSON.parse(req.query.options);
+                var selectOptions = _this.getSelectOptions(req);
+                if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                     selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
                     return dataModel.select(selectOptions);
                 }
@@ -125,6 +126,16 @@ var PublishContext = (function () {
             })
                 .done();
         });
+    };
+    PublishContext.prototype.getSelectOptions = function (req) {
+        var selectOptions = null;
+        if (req.header("X-Get-Options")) {
+            selectOptions = JSON.parse(req.header("X-Get-Options"));
+        }
+        if (req.query.options) {
+            selectOptions = JSON.parse(req.query.options);
+        }
+        return selectOptions;
     };
     PublishContext.prototype.addSyncContextGet = function (name, syncContext) {
         this._router.get("/" + name + "/start", function (req, res) {
