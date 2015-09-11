@@ -221,12 +221,16 @@ var SyncContext = (function () {
             ? "DELETE"
             : "POST";
         request({
-            method: "POST",
+            method: method,
             url: dataModelSync.syncOptions.postUrl,
             body: JSON.stringify(data)
         }, function (err, res, body) {
             if (err) {
                 def.resolve(err);
+                return;
+            }
+            if (!body) {
+                def.resolve(true);
                 return;
             }
             body = JSON.parse(body);

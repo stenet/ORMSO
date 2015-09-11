@@ -264,12 +264,18 @@ export class SyncContext {
             : "POST";
 
         request({
-            method: "POST",
+            method: method,
             url: dataModelSync.syncOptions.postUrl,
             body: JSON.stringify(data)
         }, (err, res, body): void => {
             if (err) {
                 def.resolve(err);
+                return;
+            }
+
+            //TODO - dürfte es nur bei DELETE geben
+            if (!body) {
+                def.resolve(true);
                 return;
             }
 
