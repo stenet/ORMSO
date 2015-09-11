@@ -17,6 +17,7 @@ export class PublishContext {
         this.addDataModelPost(name, dataModel);
         this.addDataModelPatch(name, dataModel);
         this.addDataModelPut(name, dataModel);
+        this.addDataModelDelete(name, dataModel);
     }
     addSyncContext(name: string, syncContext: sc.SyncContext): void {
         this.addSyncContextGet(name, syncContext);
@@ -77,7 +78,7 @@ export class PublishContext {
         this._router.patch("/" + name, (req, res): void => {
             dataModel.updateAndSelect(req.body)
                 .then((r): q.Promise<any> => {
-                    var selectOptions = this.getSelectOptions(req);                
+                    var selectOptions = this.getSelectOptions(req);
 
                     if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                         selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
@@ -107,7 +108,7 @@ export class PublishContext {
         this._router.put("/" + name, (req, res): void => {
             dataModel.insertAndSelect(req.body)
                 .then((r): q.Promise<any> => {
-                var selectOptions = this.getSelectOptions(req); 
+                    var selectOptions = this.getSelectOptions(req);
 
                     if (r && selectOptions && r[dataModel.tableInfo.primaryKey.name]) {
                         selectOptions.where = [dataModel.tableInfo.primaryKey.name, r[dataModel.tableInfo.primaryKey.name]];
@@ -129,6 +130,17 @@ export class PublishContext {
                     } else {
                         res.json(r);
                     }
+                })
+                .done();
+        });
+    }
+    private addDataModelDelete(name: string, dataModel: dc.DataModel): void {
+        this._router.put("/" + name, (req, res): void => {
+            dataModel.delete(req.body)
+                .then((): void => {
+                    res.json({
+                        status: "deleted"
+                    });
                 })
                 .done();
         });

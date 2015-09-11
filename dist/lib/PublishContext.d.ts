@@ -11,6 +11,7 @@ export declare class PublishContext {
     private addDataModelPost(name, dataModel);
     private addDataModelPatch(name, dataModel);
     private addDataModelPut(name, dataModel);
+    private addDataModelDelete(name, dataModel);
     private getSelectOptions(req);
     private addSyncContextGet(name, syncContext);
 }
