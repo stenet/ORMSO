@@ -216,8 +216,12 @@ export class SyncContext {
             return dataModelSync.dataModel.select({
                 where: where
             })
-                .then((r): q.Promise<any> => {
-                    return this.executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row);
+                .then((r): q.Promise<any[]> => {
+                    return this
+                        .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
+                        .then((): q.Promise<any[]> => {
+                            return q.resolve(r);
+                        });
                 })
                 .then((r): q.Promise<any> => {
                     row._isSyncActive = true;
@@ -259,35 +263,49 @@ export class SyncContext {
     private postDataToServer(dataModelSync: IDataModelSync, data: any): q.Promise<any> {
         var def = q.defer<any>();
 
-        var method = data[ColMarkedAsDeleted] == true
+        var isDeleted = data[ColMarkedAsDeleted] == true;
+
+        var method = isDeleted
             ? "DELETE"
             : "POST";
 
+        if (!data[dataModelSync.syncOptions.serverPrimaryKey.name]) {
+            def.resolve(true);
+            return;
+        }
+
+        var url = isDeleted
+            ? dataModelSync.syncOptions.postUrl + "/" + data[dataModelSync.syncOptions.serverPrimaryKey.name]
+            : dataModelSync.syncOptions.postUrl;
+
+        var body = isDeleted
+            ? null
+            : JSON.stringify(data);
+
         request({
             method: method,
-            url: dataModelSync.syncOptions.postUrl,
-            body: JSON.stringify(data)
-        }, (err, res, body): void => {
+            url: url,
+            body: body
+        }, (err, res, r): void => {
             if (err) {
                 def.resolve(err);
                 return;
             }
 
-            //TODO - dürfte es nur bei DELETE geben
-            if (!body) {
+            if (isDeleted) {
                 def.resolve(true);
                 return;
             }
 
-            body = JSON.parse(body);
-            body[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
-            body[ColDoSync] = false;
+            r = JSON.parse(r);
+            r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
+            r[ColDoSync] = false;
 
-            body._isSyncActive = true;
-            
+            r._isSyncActive = true;
+
             dataModelSync
                 .dataModel
-                .updateAndSelect(body)
+                .updateAndSelect(r)
                 .then((r) => {
                     return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
                 })

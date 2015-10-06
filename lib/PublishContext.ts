@@ -135,12 +135,17 @@ export class PublishContext {
         });
     }
     private addDataModelDelete(name: string, dataModel: dc.DataModel): void {
-        this._router.put("/" + name, (req, res): void => {
-            dataModel.delete(req.body)
-                .then((): void => {
-                    res.json({
-                        status: "deleted"
-                    });
+        this._router.put("/" + name + "/:id", (req, res): void => {
+            dataModel.selectById(req.params.id)
+                .then((r) => {
+                    if (r) {
+                        dataModel.delete(req.body)
+                            .then(() => {
+                                res.json(200);
+                            });
+                    } else {
+                        res.json(404);
+                    }
                 })
                 .done();
         });

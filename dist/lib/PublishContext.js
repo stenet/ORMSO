@@ -129,12 +129,18 @@ var PublishContext = (function () {
         });
     };
     PublishContext.prototype.addDataModelDelete = function (name, dataModel) {
-        this._router.put("/" + name, function (req, res) {
-            dataModel.delete(req.body)
-                .then(function () {
-                res.json({
-                    status: "deleted"
-                });
+        this._router.put("/" + name + "/:id", function (req, res) {
+            dataModel.selectById(req.params.id)
+                .then(function (r) {
+                if (r) {
+                    dataModel.delete(req.body)
+                        .then(function () {
+                        res.json(200);
+                    });
+                }
+                else {
+                    res.json(404);
+                }
             })
                 .done();
         });
