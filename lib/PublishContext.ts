@@ -135,16 +135,16 @@ export class PublishContext {
         });
     }
     private addDataModelDelete(name: string, dataModel: dc.DataModel): void {
-        this._router.put("/" + name + "/:id", (req, res): void => {
+        this._router.delete("/" + name + "/:id", (req, res): void => {
             dataModel.selectById(req.params.id)
                 .then((r) => {
                     if (r) {
                         dataModel.delete(req.body)
                             .then(() => {
-                                res.json(200);
+                                res.status(200);
                             });
                     } else {
-                        res.json(404);
+                        res.status(404);
                     }
                 })
                 .done();
@@ -167,10 +167,14 @@ export class PublishContext {
     private addSyncContextGet(name: string, syncContext: sc.SyncContext): void {
         this._router.get("/" + name + "/start", (req, res): void => {
             if (syncContext.isSyncActive()) {
-                res.json("Sync already started");
+                res.json({
+                    status: "Sync has been started"
+                });
             } else {
                 syncContext.syncAll();
-                res.json("Sync started");
+                res.json({
+                    status: "Sync already has been started"
+                });
             }
         });
         this._router.get("/" + name + "/status", (req, res): void => {
