@@ -168,12 +168,12 @@ export class PublishContext {
         this._router.get("/" + name + "/start", (req, res): void => {
             if (syncContext.isSyncActive()) {
                 res.json({
-                    status: "Sync has been started"
+                    status: "Sync already has been started"
                 });
             } else {
                 syncContext.syncAll();
                 res.json({
-                    status: "Sync already has been started"
+                    status: "Sync has been started"
                 });
             }
         });

@@ -225,7 +225,7 @@ var SyncContext = (function () {
         var method = isDeleted
             ? "DELETE"
             : "POST";
-        if (!data[dataModelSync.syncOptions.serverPrimaryKey.name]) {
+        if (isDeleted && !data[dataModelSync.syncOptions.serverPrimaryKey.name]) {
             def.resolve(true);
             return;
         }
