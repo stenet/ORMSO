@@ -15,6 +15,7 @@ export declare class SyncContext {
     private _isSyncActiveAll;
     private _isSyncActive;
     private _header;
+    private _cookies;
     constructor();
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions): void;
     addRequestHeader(header: any): void;

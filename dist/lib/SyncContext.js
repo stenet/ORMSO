@@ -30,6 +30,7 @@ var SyncContext = (function () {
         this._isSyncActiveAll = false;
         this._isSyncActive = false;
         this._header = {};
+        this._cookies = request.jar();
     }
     SyncContext.prototype.addDataModel = function (dataModel, syncOptions) {
         var dataModelSync = this.getDataModelSync(dataModel);
@@ -315,7 +316,8 @@ var SyncContext = (function () {
             method: method || "GET",
             url: url,
             body: body,
-            headers: this._header
+            headers: this._header,
+            jar: this._cookies
         };
     };
     return SyncContext;

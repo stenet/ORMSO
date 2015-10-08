@@ -48,6 +48,7 @@ export class SyncContext {
     private _isSyncActiveAll: boolean = false;
     private _isSyncActive: boolean = false;
     private _header: any = {};
+    private _cookies: request.CookieJar = request.jar();
 
     constructor() {
     }
@@ -373,7 +374,8 @@ export class SyncContext {
             method: method || "GET",
             url: url,
             body: body,
-            headers: this._header
+            headers: this._header,
+            jar: this._cookies
         }
     }
 }
