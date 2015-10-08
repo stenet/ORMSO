@@ -19,7 +19,6 @@ var syncModel = ctx.createDataModel({
 });
 var finalizeThen = ctx.finalizeInitialize()
     .then(function () {
-    console.log("Initialize for synchronisation models done");
     return q.resolve(null);
 })
     .catch(function (r) {
@@ -30,6 +29,7 @@ var SyncContext = (function () {
         this._dataModelSyncs = [];
         this._isSyncActiveAll = false;
         this._isSyncActive = false;
+        this._header = {};
     }
     SyncContext.prototype.addDataModel = function (dataModel, syncOptions) {
         var dataModelSync = this.getDataModelSync(dataModel);
@@ -44,6 +44,9 @@ var SyncContext = (function () {
             syncOptions: syncOptions
         });
         this.alterTable(dataModel);
+    };
+    SyncContext.prototype.addRequestHeader = function (header) {
+        h.Helpers.extend(this._header, header);
     };
     SyncContext.prototype.isSyncActive = function () {
         return this._isSyncActive || this._isSyncActiveAll;
@@ -155,9 +158,12 @@ var SyncContext = (function () {
     };
     SyncContext.prototype.loadData = function (url) {
         var def = q.defer();
-        request(url, function (err, res, body) {
+        request(this.getRequestOptions(url), function (err, res, body) {
             if (err) {
                 def.reject(err);
+            }
+            else if (!h.Helpers.wasRequestSuccessful(res)) {
+                def.reject(h.Helpers.getRequestError(res));
             }
             else {
                 var result = JSON.parse(body);
@@ -235,13 +241,13 @@ var SyncContext = (function () {
         var body = isDeleted
             ? null
             : JSON.stringify(data);
-        request({
-            method: method,
-            url: url,
-            body: body
-        }, function (err, res, r) {
+        request(this.getRequestOptions(url, method, body), function (err, res, r) {
             if (err) {
                 def.resolve(err);
+                return;
+            }
+            else if (!h.Helpers.wasRequestSuccessful(res)) {
+                def.reject(h.Helpers.getRequestError(res));
                 return;
             }
             if (isDeleted) {
@@ -303,6 +309,14 @@ var SyncContext = (function () {
             args.item[ColDoSync] = true;
         }
         return q.resolve(null);
+    };
+    SyncContext.prototype.getRequestOptions = function (url, method, body) {
+        return {
+            method: method || "GET",
+            url: url,
+            body: body,
+            headers: this._header
+        };
     };
     return SyncContext;
 })();

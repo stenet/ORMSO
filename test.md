@@ -1,4 +1,3 @@
-Initialize for synchronisation models done
 # TOC
    - [Data Context (Structure)](#data-context-structure)
    - [Data Model (Functions)](#data-model-functions)

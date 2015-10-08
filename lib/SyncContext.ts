@@ -22,7 +22,6 @@ var syncModel = ctx.createDataModel({
 })
 var finalizeThen = ctx.finalizeInitialize()
     .then((): q.Promise<any> => {
-        console.log("Initialize for synchronisation models done");
         return q.resolve(null);
     })
     .catch((r): void => {
@@ -48,6 +47,7 @@ export class SyncContext {
     private _dataModelSyncs: IDataModelSync[] = [];
     private _isSyncActiveAll: boolean = false;
     private _isSyncActive: boolean = false;
+    private _header: any = {};
 
     constructor() {
     }
@@ -68,6 +68,9 @@ export class SyncContext {
         });
 
         this.alterTable(dataModel);
+    }
+    addRequestHeader(header: any): void {
+        h.Helpers.extend(this._header, header);
     }
 
     isSyncActive(): boolean {
@@ -194,9 +197,11 @@ export class SyncContext {
     private loadData(url: string): q.Promise<any[]> {
         var def = q.defer<any[]>();
 
-        request(url, (err, res, body): void => {
+        request(this.getRequestOptions(url), (err, res, body): void => {
             if (err) {
                 def.reject(err);
+            } else if (!h.Helpers.wasRequestSuccessful(res)) {
+                def.reject(h.Helpers.getRequestError(res));
             } else {
                 var result = JSON.parse(body);
                 if (!Array.isArray(result)) {
@@ -282,40 +287,41 @@ export class SyncContext {
             ? null
             : JSON.stringify(data);
 
-        request({
-            method: method,
-            url: url,
-            body: body
-        }, (err, res, r): void => {
-            if (err) {
-                def.resolve(err);
-                return;
-            }
+        request(
+            this.getRequestOptions(url, method, body),
+            (err, res, r): void => {
+                if (err) {
+                    def.resolve(err);
+                    return;
+                } else if (!h.Helpers.wasRequestSuccessful(res)) {
+                    def.reject(h.Helpers.getRequestError(res));
+                    return;
+                }
 
-            if (isDeleted) {
-                def.resolve(true);
-                return;
-            }
-
-            r = JSON.parse(r);
-            r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
-            r[ColDoSync] = false;
-
-            r._isSyncActive = true;
-
-            dataModelSync
-                .dataModel
-                .updateAndSelect(r)
-                .then((r) => {
-                    return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
-                })
-                .then((r) => {
+                if (isDeleted) {
                     def.resolve(true);
-                })
-                .catch((r): void => {
-                    def.reject(r);
-                });
-        });
+                    return;
+                }
+
+                r = JSON.parse(r);
+                r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
+                r[ColDoSync] = false;
+
+                r._isSyncActive = true;
+
+                dataModelSync
+                    .dataModel
+                    .updateAndSelect(r)
+                    .then((r) => {
+                        return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
+                    })
+                    .then((r) => {
+                        def.resolve(true);
+                    })
+                    .catch((r): void => {
+                        def.reject(r);
+                    });
+            });
 
         return def.promise;
     }
@@ -360,5 +366,14 @@ export class SyncContext {
         }
 
         return q.resolve(null);
+    }
+
+    private getRequestOptions(url: string, method?: string, body?: string): request.Options {
+        return {
+            method: method || "GET",
+            url: url,
+            body: body,
+            headers: this._header
+        }
     }
 }

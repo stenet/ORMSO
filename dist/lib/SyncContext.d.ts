@@ -14,8 +14,10 @@ export declare class SyncContext {
     private _dataModelSyncs;
     private _isSyncActiveAll;
     private _isSyncActive;
+    private _header;
     constructor();
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions): void;
+    addRequestHeader(header: any): void;
     isSyncActive(): boolean;
     sync(dataModel: dc.DataModel): q.Promise<any>;
     syncAll(): q.Promise<any>;
@@ -29,4 +31,5 @@ export declare class SyncContext {
     private executeTrigger(dataModelSync, triggerName, row);
     private saveSyncState(dataModelSync, date);
     private checkSyncState(args);
+    private getRequestOptions(url, method?, body?);
 }
