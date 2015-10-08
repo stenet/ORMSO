@@ -139,12 +139,17 @@ export class PublishContext {
             dataModel.selectById(req.params.id)
                 .then((r) => {
                     if (r) {
-                        dataModel.delete(req.body)
+                        dataModel.delete(r)
                             .then(() => {
-                                res.status(200);
+                                res.json({
+                                    status: "Item has been deleted"
+                                });
                             });
                     } else {
                         res.status(404);
+                        res.json({
+                            status: "Item was not found"
+                        });
                     }
                 })
                 .done();

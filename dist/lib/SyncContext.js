@@ -255,7 +255,12 @@ var SyncContext = (function () {
                 def.resolve(true);
                 return;
             }
-            r = JSON.parse(r);
+            if (r) {
+                r = JSON.parse(r);
+            }
+            else {
+                r = data;
+            }
             r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
             r[ColDoSync] = false;
             r._isSyncActive = true;
