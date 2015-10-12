@@ -29,6 +29,7 @@ var SyncContext = (function () {
         this._dataModelSyncs = [];
         this._isSyncActiveAll = false;
         this._isSyncActive = false;
+        this._currentSelectOptions = null;
         this._header = {};
         this._cookies = request.jar();
     }
@@ -109,6 +110,7 @@ var SyncContext = (function () {
         });
     };
     SyncContext.prototype.alterTable = function (dataModel) {
+        var _this = this;
         dataModel.tableInfo.table.columns.push({
             name: ColDoSync,
             dataType: dl.DataTypes.bool,
@@ -119,7 +121,12 @@ var SyncContext = (function () {
             dataType: dl.DataTypes.bool,
             defaultValue: false
         });
-        dataModel.appendFixedWhere([ColMarkedAsDeleted, false]);
+        dataModel.registerAdditionalWhere(function (selectOptions) {
+            if (_this._isSyncActive && _this._currentSelectOptions == selectOptions) {
+                return null;
+            }
+            return [ColMarkedAsDeleted, false];
+        });
         dataModel.onBeforeInsert(this.checkSyncState);
         dataModel.onBeforeUpdate(this.checkSyncState);
         dataModel.onBeforeDelete(function (args) {
@@ -216,6 +223,7 @@ var SyncContext = (function () {
         var selectOptions = {
             where: [ColDoSync, true]
         };
+        this._currentSelectOptions = selectOptions;
         return dataModelSync
             .dataModel
             .select(selectOptions)
@@ -249,10 +257,6 @@ var SyncContext = (function () {
             }
             else if (!h.Helpers.wasRequestSuccessful(res)) {
                 def.reject(h.Helpers.getRequestError(res));
-                return;
-            }
-            if (isDeleted) {
-                def.resolve(true);
                 return;
             }
             if (r) {
@@ -308,11 +312,13 @@ var SyncContext = (function () {
         });
     };
     SyncContext.prototype.checkSyncState = function (args) {
-        if (args.item._isSyncActive) {
-            args.item[ColDoSync] = false;
-        }
-        else {
-            args.item[ColDoSync] = true;
+        if (!args.item._isConstraintAdapting) {
+            if (args.item._isSyncActive) {
+                args.item[ColDoSync] = false;
+            }
+            else {
+                args.item[ColDoSync] = true;
+            }
         }
         return q.resolve(null);
     };

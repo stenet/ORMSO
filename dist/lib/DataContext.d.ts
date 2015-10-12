@@ -24,7 +24,7 @@ export declare class DataModel {
     dataContext: DataContext;
     tableInfo: dl.ITableInfo;
     private _dataLayer;
-    private _fixedWhere;
+    private _additionalWhereCallbacks;
     private _beforeInsertCallbacks;
     private _afterInsertCallbacks;
     private _beforeUpdateCallbacks;
@@ -32,6 +32,7 @@ export declare class DataModel {
     private _beforeDeleteCallbacks;
     private _afterDeleteCallbacks;
     constructor(dataContext: DataContext, tableInfo: dl.ITableInfo);
+    registerAdditionalWhere(where: (selectOptions: dl.ISelectOptionsDataContext) => any[]): void;
     onBeforeInsert(callback: (args: ITriggerArgs) => q.Promise<any>): void;
     onAfterInsert(callback: (args: ITriggerArgs) => q.Promise<any>): void;
     onBeforeUpdate(callback: (args: ITriggerArgs) => q.Promise<any>): void;
@@ -49,11 +50,10 @@ export declare class DataModel {
     selectById(id: any): q.Promise<any>;
     select(selectOptions: dl.ISelectOptionsDataContext): q.Promise<any[]>;
     selectCount(where: any): q.Promise<any>;
-    appendFixedWhere(where: any): void;
     getColumn(columnName: string): dl.IColumn;
     private createCustomSelectOptions(selectOptions);
     private getBaseTables();
-    private getCombinedWhere(customWhere);
+    private getCombinedWhere(selectOptions, customWhere);
     private expand(selectOptions, rows);
     private expandRelation(relationName, selectOptions, rows);
     private saveChildRelations(row);

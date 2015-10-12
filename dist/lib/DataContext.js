@@ -110,7 +110,7 @@ var DataModel = (function () {
     function DataModel(dataContext, tableInfo) {
         this.dataContext = dataContext;
         this.tableInfo = tableInfo;
-        this._fixedWhere = [];
+        this._additionalWhereCallbacks = [];
         this._beforeInsertCallbacks = [];
         this._afterInsertCallbacks = [];
         this._beforeUpdateCallbacks = [];
@@ -119,6 +119,9 @@ var DataModel = (function () {
         this._afterDeleteCallbacks = [];
         this._dataLayer = dataContext.dataLayer;
     }
+    DataModel.prototype.registerAdditionalWhere = function (where) {
+        this._additionalWhereCallbacks.push(where);
+    };
     DataModel.prototype.onBeforeInsert = function (callback) {
         this._beforeInsertCallbacks.push(callback);
     };
@@ -319,9 +322,6 @@ var DataModel = (function () {
     DataModel.prototype.selectCount = function (where) {
         return this._dataLayer.selectCount(this.tableInfo, where);
     };
-    DataModel.prototype.appendFixedWhere = function (where) {
-        this._fixedWhere.push(where);
-    };
     DataModel.prototype.getColumn = function (columnName) {
         var columns = this.tableInfo.table.columns.filter(function (column) {
             return column.name === columnName;
@@ -333,7 +333,7 @@ var DataModel = (function () {
     };
     DataModel.prototype.createCustomSelectOptions = function (selectOptions) {
         var result = h.Helpers.extend({}, selectOptions);
-        result.where = this.getCombinedWhere(result.where);
+        result.where = this.getCombinedWhere(selectOptions, result.where);
         return result;
     };
     DataModel.prototype.getBaseTables = function () {
@@ -345,17 +345,20 @@ var DataModel = (function () {
         }
         return baseTables;
     };
-    DataModel.prototype.getCombinedWhere = function (customWhere) {
+    DataModel.prototype.getCombinedWhere = function (selectOptions, customWhere) {
         var newWhere = [];
-        if (this._fixedWhere) {
-            newWhere = newWhere.concat(this._fixedWhere);
+        var additionalWhere = this._additionalWhereCallbacks
+            .map(function (item) { return item(selectOptions); })
+            .filter(function (item) { return item != null; });
+        if (additionalWhere && additionalWhere.length > 0) {
+            newWhere = newWhere.concat(additionalWhere);
         }
         if (customWhere) {
             newWhere = [customWhere].concat(newWhere);
         }
         if (this.tableInfo.baseTableInfo) {
             var baseModel = this.dataContext.getDataModel(this.tableInfo.baseTableInfo.table);
-            newWhere = baseModel.getCombinedWhere(newWhere);
+            newWhere = baseModel.getCombinedWhere(selectOptions, newWhere);
         }
         if (newWhere.length === 0) {
             return null;

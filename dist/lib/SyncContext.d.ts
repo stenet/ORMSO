@@ -14,6 +14,7 @@ export declare class SyncContext {
     private _dataModelSyncs;
     private _isSyncActiveAll;
     private _isSyncActive;
+    private _currentSelectOptions;
     private _header;
     private _cookies;
     constructor();

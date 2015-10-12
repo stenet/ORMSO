@@ -100,7 +100,7 @@ export declare class Sqlite3DataLayer implements IDataLayer {
     private getColumnCreateStatement(column);
     private getDataType(dataType);
     private getIndexName(table, column);
-    private getColumns(table, withPrimaryKey, withAutoIncrement);
+    private getColumns(table, withPrimaryKey, withAutoIncrement, objectToCheck?);
     private getSelectColumns(selectOptions?);
     private getSelectFrom(table);
     private getSelectWhere(tableInfo, parameters, selectOptions?);

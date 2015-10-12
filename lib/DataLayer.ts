@@ -163,10 +163,10 @@ export class Sqlite3DataLayer implements IDataLayer {
         this.validateBeforeUpdateToStore(table, item);
 
         var statement = "update " + table.name + " set "
-            + this.getColumns(table, false, false).map((column): string => column.name + " = ?").join(", ")
+            + this.getColumns(table, false, false, item).map((column): string => column.name + " = ?").join(", ")
             + " where " + tableInfo.primaryKey.name + " = ?";
 
-        var parameters = this.getColumns(table, false, false).map((column): any => item[column.name]);
+        var parameters = this.getColumns(table, false, false, item).map((column): any => item[column.name]);
         parameters.push(item[tableInfo.primaryKey.name]);
 
         return this.executeNonQuery(statement, parameters)
@@ -383,10 +383,11 @@ export class Sqlite3DataLayer implements IDataLayer {
     private getIndexName(table: ITable, column: IColumn): string {
         return "ix" + table.name + "_" + column.name;
     }
-    private getColumns(table: ITable, withPrimaryKey: boolean, withAutoIncrement: boolean): IColumn[] {
+    private getColumns(table: ITable, withPrimaryKey: boolean, withAutoIncrement: boolean, objectToCheck?: any): IColumn[] {
         return table.columns.filter((column): boolean => {
             return (withPrimaryKey || column.isPrimaryKey !== true)
-                && (withAutoIncrement || column.isAutoIncrement !== true);
+                && (withAutoIncrement || column.isAutoIncrement !== true)
+                && (!objectToCheck || (objectToCheck[column.name] !== undefined));
         });
     }
 

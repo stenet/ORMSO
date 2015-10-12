@@ -47,6 +47,7 @@ export class SyncContext {
     private _dataModelSyncs: IDataModelSync[] = [];
     private _isSyncActiveAll: boolean = false;
     private _isSyncActive: boolean = false;
+    private _currentSelectOptions: dl.ISelectOptionsDataContext = null;
     private _header: any = {};
     private _cookies: request.CookieJar = request.jar();
 
@@ -151,7 +152,13 @@ export class SyncContext {
             defaultValue: false
         });
 
-        dataModel.appendFixedWhere([ColMarkedAsDeleted, false]);
+        dataModel.registerAdditionalWhere((selectOptions): any[] => {
+            if (this._isSyncActive && this._currentSelectOptions == selectOptions) {
+                return null;
+            }
+
+            return [ColMarkedAsDeleted, false];
+        });
 
         dataModel.onBeforeInsert(this.checkSyncState);
         dataModel.onBeforeUpdate(this.checkSyncState);
@@ -257,6 +264,8 @@ export class SyncContext {
             where: [ColDoSync, true]
         };
 
+        this._currentSelectOptions = selectOptions;
+
         return dataModelSync
             .dataModel
             .select(selectOptions)
@@ -296,11 +305,6 @@ export class SyncContext {
                     return;
                 } else if (!h.Helpers.wasRequestSuccessful(res)) {
                     def.reject(h.Helpers.getRequestError(res));
-                    return;
-                }
-
-                if (isDeleted) {
-                    def.resolve(true);
                     return;
                 }
 
@@ -365,10 +369,12 @@ export class SyncContext {
             })
     }
     private checkSyncState(args: dc.ITriggerArgs): q.Promise<any> {
-        if (args.item._isSyncActive) {
-            args.item[ColDoSync] = false;
-        } else {
-            args.item[ColDoSync] = true;
+        if (!args.item._isConstraintAdapting) {
+            if (args.item._isSyncActive) {
+                args.item[ColDoSync] = false;
+            } else {
+                args.item[ColDoSync] = true;
+            }
         }
 
         return q.resolve(null);

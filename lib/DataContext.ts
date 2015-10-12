@@ -130,7 +130,8 @@ export class DataContext {
 
 export class DataModel {
     private _dataLayer: dl.IDataLayer;
-    private _fixedWhere: any[] = [];
+
+    private _additionalWhereCallbacks: ((selectOptions: dl.ISelectOptionsDataContext) => any[])[] = [];
 
     private _beforeInsertCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
     private _afterInsertCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
@@ -141,6 +142,11 @@ export class DataModel {
 
     constructor(public dataContext: DataContext, public tableInfo: dl.ITableInfo) {
         this._dataLayer = dataContext.dataLayer;
+    }
+
+    /** appends a where which will be executed always when reading data by operators */
+    registerAdditionalWhere(where: (selectOptions: dl.ISelectOptionsDataContext) => any[]): void {
+        this._additionalWhereCallbacks.push(where);
     }
 
     /** Add before insert callback */
@@ -369,11 +375,6 @@ export class DataModel {
         return this._dataLayer.selectCount(this.tableInfo, where);
     }
 
-    /** appends a fixed where which will be executed always when reading data by operators */
-    appendFixedWhere(where: any): void {
-        this._fixedWhere.push(where);
-    }
-
     /** returns the column by its name */
     getColumn(columnName: string): dl.IColumn {
         var columns = this.tableInfo.table.columns.filter((column): boolean => {
@@ -389,7 +390,7 @@ export class DataModel {
 
     private createCustomSelectOptions(selectOptions: dl.ISelectOptionsDataContext): dl.ISelectOptionsDataLayer {
         var result = h.Helpers.extend({}, selectOptions);
-        result.where = this.getCombinedWhere(result.where);
+        result.where = this.getCombinedWhere(selectOptions, result.where);
 
         return result;
     }
@@ -406,19 +407,24 @@ export class DataModel {
 
         return baseTables;
     }
-    private getCombinedWhere(customWhere: any) {
+    private getCombinedWhere(selectOptions: dl.ISelectOptionsDataContext, customWhere: any) {
         var newWhere: any[] = [];
 
-        if (this._fixedWhere) {
-            newWhere = newWhere.concat(this._fixedWhere);
+        var additionalWhere = this._additionalWhereCallbacks
+            .map((item) => { return item(selectOptions); })
+            .filter((item) => { return item != null; });
+
+        if (additionalWhere && additionalWhere.length > 0) {
+            newWhere = newWhere.concat(additionalWhere);
         }
+
         if (customWhere) {
             newWhere = [customWhere].concat(newWhere);
         }
 
         if (this.tableInfo.baseTableInfo) {
             var baseModel = this.dataContext.getDataModel(this.tableInfo.baseTableInfo.table);
-            newWhere = baseModel.getCombinedWhere(newWhere);
+            newWhere = baseModel.getCombinedWhere(selectOptions, newWhere);
         }
 
         if (newWhere.length === 0) {
