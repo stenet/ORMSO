@@ -1,5 +1,6 @@
 ﻿import h = require("./helpers");
 import dl = require("./DataLayer");
+
 import q = require("q");
 import extend = require("extend");
 
@@ -7,13 +8,11 @@ export interface ITriggerArgs {
     item: any;
     cancel: boolean;
 }
-
 export class DataContext {
     private _dataModels: DataModel[] = [];
     private _hasFinalizeDone: boolean = false;
 
     constructor(public dataLayer: dl.IDataLayer) {
-
     }
 
     createDataModel(table: dl.ITable, baseModel?: DataModel): DataModel {
@@ -127,7 +126,6 @@ export class DataContext {
         }
     }
 }
-
 export class DataModel {
     private _dataLayer: dl.IDataLayer;
 

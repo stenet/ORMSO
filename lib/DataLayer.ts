@@ -422,7 +422,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         return "order by " + selectOptions.orderBy.map((orderBy): string => {
             return this.getSelectFieldName(tableInfo, orderBy.columnName) + " " + this.getSelectOrderBySort(orderBy.sort);
-            })
+        })
             .join(", ");
     }
     private getSelectOrderBySort(sort: OrderBySort): string {
@@ -466,7 +466,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
                 for (var index = 1; index < elements.length; index = index + 2) {
                     result += " " + elements[index]
-                        + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
+                    + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
                 }
 
                 return "(" + result + ")";

@@ -1,4 +1,4 @@
-﻿
+﻿import dc = require("../lib/DataContext");
 import fs = require("fs");
 import o = require("../index");
 

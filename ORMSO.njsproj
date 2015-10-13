@@ -45,7 +45,6 @@
     <Content Include="README.md" />
     <TypeScriptCompile Include="lib\PublishContext.ts" />
     <TypeScriptCompile Include="lib\SyncContext.ts" />
-    <TypeScriptCompile Include="ormso.d.ts" />
     <TypeScriptCompile Include="test\test.ts" />
     <TypeScriptCompile Include="test\models.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular-sanitize.d.ts" />
@@ -105,6 +104,9 @@
     <TypeScriptMapRoot />
     <TypeScriptSourceRoot />
     <TypeScriptModuleKind>CommonJS</TypeScriptModuleKind>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptGeneratesDeclarations>True</TypeScriptGeneratesDeclarations>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="False" />
   <Import Project="$(VSToolsPath)\Node.js Tools\Microsoft.NodejsTools.targets" />
