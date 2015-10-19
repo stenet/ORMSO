@@ -397,6 +397,10 @@ export class SyncContext {
             } else {
                 args.item[ColDoSync] = true;
             }
+
+            if (args.item.__IsDeleted) {
+                args.item[ColMarkedAsDeleted] = true;
+            }
         }
 
         return q.resolve(null);
