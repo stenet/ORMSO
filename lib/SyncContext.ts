@@ -35,6 +35,8 @@ export interface ISyncOptions {
 
     serverPrimaryKey: dl.IColumn;
 
+    maxSyncIntervalMinutes?: number;
+
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
     onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
@@ -42,6 +44,7 @@ export interface ISyncOptions {
 interface IDataModelSync {
     dataModel: dc.DataModel;
     syncOptions: ISyncOptions;
+    lastSync?: Date;
 }
 export class SyncContext {
     private _dataModelSyncs: IDataModelSync[] = [];
@@ -78,12 +81,10 @@ export class SyncContext {
     isSyncActive(): boolean {
         return this._isSyncActive || this._isSyncActiveAll;
     }
-    sync(dataModel: dc.DataModel): q.Promise<any> {
+    sync(dataModel: dc.DataModel, getOptions?: string): q.Promise<any> {
         if (this._isSyncActive) {
             throw Error("Sync already started");
         }
-
-        this._isSyncActive = true;
 
         var dataModelSync = this.getDataModelSync(dataModel);
 
@@ -91,6 +92,14 @@ export class SyncContext {
             throw Error("DataModel for table " + dataModel.tableInfo.table.name + " is not configured for sync");
         }
 
+        if (!getOptions
+            && dataModelSync.lastSync
+            && dataModelSync.syncOptions.maxSyncIntervalMinutes
+            && moment(dataModelSync.lastSync).add(dataModelSync.syncOptions.maxSyncIntervalMinutes, "m").toDate() > new Date()) {
+            return;
+        }
+
+        this._isSyncActive = true;
         var syncStart = new Date();
 
         return finalizeThen
@@ -98,7 +107,7 @@ export class SyncContext {
                 return this.postData(dataModelSync);
             })
             .then((): q.Promise<string> => {
-                return this.getLoadUrl(dataModelSync);
+                return this.getLoadUrl(dataModelSync, getOptions);
             })
             .then((r): q.Promise<any[]> => {
                 return this.loadData(r);
@@ -107,7 +116,12 @@ export class SyncContext {
                 return this.saveData(dataModelSync, r);
             })
             .then((): q.Promise<any> => {
-                return this.saveSyncState(dataModelSync, syncStart);
+                if (getOptions) {
+                    return q.resolve(null);
+                } else {
+                    dataModelSync.lastSync = syncStart;
+                    return this.saveSyncState(dataModelSync, syncStart);
+                }
             })
             .then((): q.Promise<any> => {
                 this._isSyncActive = false;
@@ -181,14 +195,22 @@ export class SyncContext {
 
         return items[0];
     }
-    private getLoadUrl(dataModelSync: IDataModelSync): q.Promise<string> {
+    private getLoadUrl(dataModelSync: IDataModelSync, getOptions: string): q.Promise<string> {
         return syncModel.select({
             where: [ColTable, dataModelSync.dataModel.tableInfo.table.name]
         })
             .then((r): q.Promise<string> => {
                 var loadUrl = dataModelSync.syncOptions.loadUrl;
 
-                if (r.length > 0) {
+                if (getOptions) {
+                    if (loadUrl.indexOf("?") > 0) {
+                        loadUrl += "&";
+                    } else {
+                        loadUrl += "?";
+                    }
+
+                    return q.resolve(loadUrl + getOptions);
+                } else if (r.length > 0) {
                     if (loadUrl.indexOf("?") > 0) {
                         loadUrl += "&";
                     } else {

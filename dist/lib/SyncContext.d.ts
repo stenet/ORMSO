@@ -6,6 +6,7 @@ export interface ISyncOptions {
     postUrl?: string;
     deleteUrl?: string;
     serverPrimaryKey: dl.IColumn;
+    maxSyncIntervalMinutes?: number;
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
     onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
@@ -21,11 +22,11 @@ export declare class SyncContext {
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions): void;
     addRequestHeader(header: any): void;
     isSyncActive(): boolean;
-    sync(dataModel: dc.DataModel): q.Promise<any>;
+    sync(dataModel: dc.DataModel, getOptions?: string): q.Promise<any>;
     syncAll(): q.Promise<any>;
     private alterTable(dataModel);
     private getDataModelSync(dataModel);
-    private getLoadUrl(dataModelSync);
+    private getLoadUrl(dataModelSync, getOptions);
     private loadData(url);
     private saveData(dataModelSync, rows);
     private postData(dataModelSync);

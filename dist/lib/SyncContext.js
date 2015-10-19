@@ -53,23 +53,29 @@ var SyncContext = (function () {
     SyncContext.prototype.isSyncActive = function () {
         return this._isSyncActive || this._isSyncActiveAll;
     };
-    SyncContext.prototype.sync = function (dataModel) {
+    SyncContext.prototype.sync = function (dataModel, getOptions) {
         var _this = this;
         if (this._isSyncActive) {
             throw Error("Sync already started");
         }
-        this._isSyncActive = true;
         var dataModelSync = this.getDataModelSync(dataModel);
         if (!dataModelSync) {
             throw Error("DataModel for table " + dataModel.tableInfo.table.name + " is not configured for sync");
         }
+        if (!getOptions
+            && dataModelSync.lastSync
+            && dataModelSync.syncOptions.maxSyncIntervalMinutes
+            && moment(dataModelSync.lastSync).add(dataModelSync.syncOptions.maxSyncIntervalMinutes, "m").toDate() > new Date()) {
+            return;
+        }
+        this._isSyncActive = true;
         var syncStart = new Date();
         return finalizeThen
             .then(function () {
             return _this.postData(dataModelSync);
         })
             .then(function () {
-            return _this.getLoadUrl(dataModelSync);
+            return _this.getLoadUrl(dataModelSync, getOptions);
         })
             .then(function (r) {
             return _this.loadData(r);
@@ -78,7 +84,13 @@ var SyncContext = (function () {
             return _this.saveData(dataModelSync, r);
         })
             .then(function () {
-            return _this.saveSyncState(dataModelSync, syncStart);
+            if (getOptions) {
+                return q.resolve(null);
+            }
+            else {
+                dataModelSync.lastSync = syncStart;
+                return _this.saveSyncState(dataModelSync, syncStart);
+            }
         })
             .then(function () {
             _this._isSyncActive = false;
@@ -144,13 +156,22 @@ var SyncContext = (function () {
         }
         return items[0];
     };
-    SyncContext.prototype.getLoadUrl = function (dataModelSync) {
+    SyncContext.prototype.getLoadUrl = function (dataModelSync, getOptions) {
         return syncModel.select({
             where: [ColTable, dataModelSync.dataModel.tableInfo.table.name]
         })
             .then(function (r) {
             var loadUrl = dataModelSync.syncOptions.loadUrl;
-            if (r.length > 0) {
+            if (getOptions) {
+                if (loadUrl.indexOf("?") > 0) {
+                    loadUrl += "&";
+                }
+                else {
+                    loadUrl += "?";
+                }
+                return q.resolve(loadUrl + getOptions);
+            }
+            else if (r.length > 0) {
                 if (loadUrl.indexOf("?") > 0) {
                     loadUrl += "&";
                 }
