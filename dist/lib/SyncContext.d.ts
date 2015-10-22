@@ -1,6 +1,10 @@
 import dl = require("./DataLayer");
 import dc = require("./DataContext");
 import q = require("q");
+export interface IServerClientColumnMapping {
+    columnServer: string;
+    columnClient: string;
+}
 export interface ISyncOptions {
     loadUrl: string;
     postUrl?: string;
@@ -10,6 +14,8 @@ export interface ISyncOptions {
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
     onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
+    primaryKeyServerClientMapping?: IServerClientColumnMapping;
+    serverClientMappings?: IServerClientColumnMapping[];
 }
 export declare class SyncContext {
     private _dataModelSyncs;
@@ -18,21 +24,27 @@ export declare class SyncContext {
     private _currentSelectOptions;
     private _header;
     private _cookies;
+    private _syncStatus;
     constructor();
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions): void;
     addRequestHeader(header: any): void;
     isSyncActive(): boolean;
+    getSyncStatus(): string;
     sync(dataModel: dc.DataModel, getOptions?: string): q.Promise<any>;
     syncAll(): q.Promise<any>;
-    private alterTable(dataModel);
+    private alterTable(dataModelSync);
     private getDataModelSync(dataModel);
     private getLoadUrl(dataModelSync, getOptions);
     private loadData(url);
     private saveData(dataModelSync, rows);
+    private onSyncFromServerBeforeSave(dataModelSync, row);
+    private onSyncFromServerAfterSave(dataModelSync, row);
+    private onSyncToServerAfterSave(dataModelSync, row);
+    private onSaving(dataModelSync, row);
     private postData(dataModelSync);
     private postDataToServer(dataModelSync, data);
     private executeTrigger(dataModelSync, triggerName, row);
     private saveSyncState(dataModelSync, date);
-    private checkSyncState(args);
+    private checkSyncState(dataModelSync, args);
     private getRequestOptions(url, method?, body?);
 }

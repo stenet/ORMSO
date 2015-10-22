@@ -28,6 +28,10 @@ var finalizeThen = ctx.finalizeInitialize()
         console.log(r);
     });
 
+export interface IServerClientColumnMapping {
+    columnServer: string;
+    columnClient: string;
+}
 export interface ISyncOptions {
     loadUrl: string;
     postUrl?: string;
@@ -40,6 +44,9 @@ export interface ISyncOptions {
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
     onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
+
+    primaryKeyServerClientMapping?: IServerClientColumnMapping;
+    serverClientMappings?: IServerClientColumnMapping[];
 }
 interface IDataModelSync {
     dataModel: dc.DataModel;
@@ -53,6 +60,7 @@ export class SyncContext {
     private _currentSelectOptions: dl.ISelectOptionsDataContext = null;
     private _header: any = {};
     private _cookies: request.CookieJar = request.jar();
+    private _syncStatus = "";
 
     constructor() {
     }
@@ -67,12 +75,14 @@ export class SyncContext {
             throw Error("SyncContext configuration should be done before DataContext.finalizeInitialize");
         }
 
-        this._dataModelSyncs.push({
+        dataModelSync = {
             dataModel: dataModel,
             syncOptions: syncOptions
-        });
+        };
 
-        this.alterTable(dataModel);
+        this._dataModelSyncs.push(dataModelSync);
+
+        this.alterTable(dataModelSync);
     }
     addRequestHeader(header: any): void {
         h.Helpers.extend(this._header, header);
@@ -80,6 +90,9 @@ export class SyncContext {
 
     isSyncActive(): boolean {
         return this._isSyncActive || this._isSyncActiveAll;
+    }
+    getSyncStatus(): string {
+        return this._syncStatus;
     }
     sync(dataModel: dc.DataModel, getOptions?: string): q.Promise<any> {
         if (this._isSyncActive) {
@@ -104,6 +117,7 @@ export class SyncContext {
 
         return finalizeThen
             .then((): q.Promise<any> => {
+                this._syncStatus = "Speichere " + dataModelSync.dataModel.tableInfo.table.name;
                 return this.postData(dataModelSync);
             })
             .then((): q.Promise<string> => {
@@ -124,10 +138,12 @@ export class SyncContext {
                 }
             })
             .then((): q.Promise<any> => {
+                this._syncStatus = "";
                 this._isSyncActive = false;
                 return q.resolve(null);
             })
             .catch((r): q.Promise<any> => {
+                this._syncStatus = "Fehler bei Synchronisierung";
                 console.log(r);
                 this._isSyncActive = false;
                 return q.resolve(null);
@@ -154,7 +170,9 @@ export class SyncContext {
             });
     }
 
-    private alterTable(dataModel: dc.DataModel): void {
+    private alterTable(dataModelSync: IDataModelSync): void {
+        var dataModel = dataModelSync.dataModel;
+
         dataModel.tableInfo.table.columns.push({
             name: ColDoSync,
             dataType: dl.DataTypes.bool,
@@ -174,8 +192,8 @@ export class SyncContext {
             return [ColMarkedAsDeleted, false];
         });
 
-        dataModel.onBeforeInsert(this.checkSyncState);
-        dataModel.onBeforeUpdate(this.checkSyncState);
+        dataModel.onBeforeInsert((args) => this.checkSyncState(dataModelSync, args));
+        dataModel.onBeforeUpdate((args) => this.checkSyncState(dataModelSync, args));
         dataModel.onBeforeDelete((args): q.Promise<any> => {
             args.item[ColMarkedAsDeleted] = true;
             args.cancel = true;
@@ -245,7 +263,14 @@ export class SyncContext {
         return def.promise;
     }
     private saveData(dataModelSync: IDataModelSync, rows: any[]): q.Promise<any> {
+        var index = 0;
+
         return h.Helpers.qSequential(rows, (row) => {
+            index++;
+            this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + "(" + index + "/" + rows.length + ")";
+
+            row._isSyncFromServer = true;
+
             var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
 
             return dataModelSync.dataModel.select({
@@ -254,13 +279,14 @@ export class SyncContext {
                 .then((r): q.Promise<any[]> => {
                     return this
                         .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
+                        .then((): q.Promise<any> => {
+                            return this.onSyncFromServerBeforeSave(dataModelSync, row);
+                        })
                         .then((): q.Promise<any[]> => {
                             return q.resolve(r);
                         });
                 })
                 .then((r): q.Promise<any> => {
-                    row._isSyncActive = true;
-
                     if (r.length === 1) {
                         return dataModelSync.dataModel.updateItems(row, where);
                     } else {
@@ -271,7 +297,133 @@ export class SyncContext {
                     return this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
                 })
                 .then((): q.Promise<any> => {
-                    delete row._isSyncActive;
+                    return this.onSyncFromServerAfterSave(dataModelSync, row);
+                })
+                .then((): q.Promise<any> => {
+                    delete row._isSyncFromServer;
+                    return q.resolve(null);
+                });
+        });
+    }
+
+    private onSyncFromServerBeforeSave(dataModelSync: IDataModelSync, row: any): q.Promise<any> {
+        if (!dataModelSync.syncOptions.serverClientMappings) {
+            return q.resolve(null);
+        }
+
+        return h.Helpers.qSequential(dataModelSync.syncOptions.serverClientMappings, (mapping: IServerClientColumnMapping) => {
+            var column = dataModelSync.dataModel.getColumn(mapping.columnClient);
+
+            if (!column) {
+                q.reject("Column " + column + " not found");
+            }
+            else if (!column.relation) {
+                q.reject("Column " + column + " needs a relation");
+            }
+
+            var parentDataModel = dataModelSync.dataModel.dataContext.getDataModel(column.relation.parentTable);
+            var parentSyncContext = this.getDataModelSync(parentDataModel);
+
+            return parentDataModel
+                .select({
+                    where: [parentSyncContext.syncOptions.primaryKeyServerClientMapping.columnServer, row[mapping.columnServer]]
+                })
+                .then((r: any[]): q.Promise<any> => {
+                    if (r.length == 0) {
+                        return q.resolve(null);
+                    }
+
+                    row[mapping.columnClient] = r[0][parentSyncContext.syncOptions.primaryKeyServerClientMapping.columnClient];
+                    return q.resolve(null);
+                });
+        });
+    }
+    private onSyncFromServerAfterSave(dataModelSync: IDataModelSync, row: any): q.Promise<any> {
+        return h.Helpers.qSequential(dataModelSync.dataModel.tableInfo.relationsToChild, (relationInfo: dl.IRelationInfo) => {
+            var childDataModel = dataModelSync.dataModel.dataContext.getDataModel(relationInfo.childTableInfo.table);
+            var childSyncContext = this.getDataModelSync(childDataModel);
+            var relationClientColumns = childSyncContext.syncOptions.serverClientMappings.filter((column) => {
+                return column.columnClient === relationInfo.childColumn.name;
+            });
+
+            if (relationClientColumns.length === 0) {
+                return q.reject("Relation " + relationInfo.parentAssociationName + "/" + relationInfo.childAssociationName + " misses ServerClientMapping");
+            }
+
+            var relationClientColumn = relationClientColumns[0];
+
+            return childDataModel
+                .select({
+                    where: [relationClientColumn.columnServer, row[dataModelSync.syncOptions.primaryKeyServerClientMapping.columnServer]]
+                })
+                .then((r: any[]): q.Promise<any> => {
+                    return h.Helpers.qSequential(r, (item) => {
+                        item[relationClientColumn.columnClient] = row[dataModelSync.syncOptions.primaryKeyServerClientMapping.columnClient];
+                        item._isConstraintAdapting = true;
+                        return childDataModel.update(item);
+                    });
+                });
+        });
+    }
+    private onSyncToServerAfterSave(dataModelSync: IDataModelSync, row: any): q.Promise<any> {
+        return h.Helpers.qSequential(dataModelSync.dataModel.tableInfo.relationsToChild, (relationInfo: dl.IRelationInfo) => {
+            var childDataModel = dataModelSync.dataModel.dataContext.getDataModel(relationInfo.childTableInfo.table);
+            var childSyncContext = this.getDataModelSync(childDataModel);
+            var relationClientColumns = childSyncContext.syncOptions.serverClientMappings.filter((column) => {
+                return column.columnClient === relationInfo.childColumn.name;
+            });
+
+            if (relationClientColumns.length === 0) {
+                return q.reject("Relation " + relationInfo.parentAssociationName + "/" + relationInfo.childAssociationName + " misses ServerClientMapping");
+            }
+
+            var relationClientColumn = relationClientColumns[0];
+
+            return childDataModel
+                .select({
+                    where: [relationClientColumn.columnClient, row[dataModelSync.syncOptions.primaryKeyServerClientMapping.columnClient]]
+                })
+                .then((r: any[]): q.Promise<any> => {
+                    return h.Helpers.qSequential(r, (item) => {
+                        item[relationClientColumn.columnServer] = row[dataModelSync.syncOptions.primaryKeyServerClientMapping.columnServer];
+                        item._isConstraintAdapting = true;
+                        return childDataModel.update(item);
+                    });
+                });
+        });
+    }
+    private onSaving(dataModelSync: IDataModelSync, row: any): q.Promise<any> {
+        if (row._isSyncFromServer) {
+            return q.resolve(null);
+        }
+
+        if (!dataModelSync.syncOptions.serverClientMappings) {
+            return q.resolve(null);
+        }
+
+        return h.Helpers.qSequential(dataModelSync.syncOptions.serverClientMappings, (mapping: IServerClientColumnMapping) => {
+            var column = dataModelSync.dataModel.getColumn(mapping.columnClient);
+
+            if (!column) {
+                q.reject("Column " + column + " not found");
+            }
+            else if (!column.relation) {
+                q.reject("Column " + column + " needs a relation");
+            }
+
+            var parentDataModel = dataModelSync.dataModel.dataContext.getDataModel(column.relation.parentTable);
+            var parentSyncContext = this.getDataModelSync(parentDataModel);
+
+            return parentDataModel
+                .select({
+                    where: [parentSyncContext.syncOptions.primaryKeyServerClientMapping.columnClient, row[mapping.columnClient]]
+                })
+                .then((r: any[]): q.Promise<any> => {
+                    if (r.length == 0) {
+                        return q.resolve(null);
+                    }
+
+                    row[mapping.columnServer] = r[0][parentSyncContext.syncOptions.primaryKeyServerClientMapping.columnServer];
                     return q.resolve(null);
                 });
         });
@@ -339,13 +491,16 @@ export class SyncContext {
                 r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
                 r[ColDoSync] = false;
 
-                r._isSyncActive = true;
+                r._IsSyncToServer = true;
 
                 dataModelSync
                     .dataModel
                     .updateAndSelect(r)
-                    .then((r) => {
+                    .then((r): q.Promise<any> => {
                         return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
+                    })
+                    .then((): q.Promise<any> => {
+                        return this.onSyncToServerAfterSave(dataModelSync, r);
                     })
                     .then((r) => {
                         def.resolve(true);
@@ -390,9 +545,9 @@ export class SyncContext {
                 }
             })
     }
-    private checkSyncState(args: dc.ITriggerArgs): q.Promise<any> {
+    private checkSyncState(dataModelSync: IDataModelSync, args: dc.ITriggerArgs): q.Promise<any> {
         if (!args.item._isConstraintAdapting) {
-            if (args.item._isSyncActive) {
+            if (args.item._isSyncFromServer || args.item._isSyncToServer) {
                 args.item[ColDoSync] = false;
             } else {
                 args.item[ColDoSync] = true;
@@ -403,7 +558,7 @@ export class SyncContext {
             }
         }
 
-        return q.resolve(null);
+        return this.onSaving(dataModelSync, args.item);
     }
 
     private getRequestOptions(url: string, method?: string, body?: string): request.Options {

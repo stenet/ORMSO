@@ -185,11 +185,13 @@ export class PublishContext {
         this._router.get("/" + name + "/status", (req, res): void => {
             if (syncContext.isSyncActive()) {
                 res.json({
-                    isActive: true
+                    isActive: true,
+                    text: syncContext.getSyncStatus()
                 });
             } else {
                 res.json({
-                    isActive: false
+                    isActive: false,
+                    text: syncContext.getSyncStatus()
                 });
             }
         });
