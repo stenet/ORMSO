@@ -4,6 +4,7 @@ import dc = require("./DataContext");
 import sc = require("./SyncContext");
 import h = require("./helpers");
 import q = require("q");
+import moment = require("moment");
 
 export class PublishContext {
     private _router: express.Router;
@@ -183,6 +184,10 @@ export class PublishContext {
             }
         });
         this._router.get("/" + name + "/status", (req, res): void => {
+            if (req.query.blockSyncMinutes) {
+                syncContext.blockSyncUntil = moment().add(req.query.blockSyncMinutes, "minutes").toDate();
+            }
+
             if (syncContext.isSyncActive()) {
                 res.json({
                     isActive: true,

@@ -26,12 +26,13 @@ export declare class SyncContext {
     private _cookies;
     private _syncStatus;
     constructor();
+    blockSyncUntil: Date;
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions): void;
     addRequestHeader(header: any): void;
     isSyncActive(): boolean;
     getSyncStatus(): string;
     sync(dataModel: dc.DataModel, getOptions?: string): q.Promise<any>;
-    syncAll(): q.Promise<any>;
+    syncAll(checkSyncBlock?: boolean): q.Promise<any>;
     private alterTable(dataModelSync);
     private getDataModelSync(dataModel);
     private getLoadUrl(dataModelSync, getOptions);

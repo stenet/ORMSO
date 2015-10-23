@@ -1,5 +1,6 @@
 var express = require("express");
 var q = require("q");
+var moment = require("moment");
 var PublishContext = (function () {
     function PublishContext() {
         this._router = express.Router();
@@ -175,6 +176,9 @@ var PublishContext = (function () {
             }
         });
         this._router.get("/" + name + "/status", function (req, res) {
+            if (req.query.blockSyncMinutes) {
+                syncContext.blockSyncUntil = moment().add(req.query.blockSyncMinutes, "minutes").toDate();
+            }
             if (syncContext.isSyncActive()) {
                 res.json({
                     isActive: true,

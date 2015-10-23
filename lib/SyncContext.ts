@@ -65,6 +65,8 @@ export class SyncContext {
     constructor() {
     }
 
+    blockSyncUntil: Date;
+
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions) {
         var dataModelSync = this.getDataModelSync(dataModel);
 
@@ -149,9 +151,12 @@ export class SyncContext {
                 return q.resolve(null);
             });
     }
-    syncAll(): q.Promise<any> {
+    syncAll(checkSyncBlock?: boolean): q.Promise<any> {
         if (this._isSyncActiveAll) {
             throw Error("Sync already started");
+        }
+        if (checkSyncBlock && this.blockSyncUntil && this.blockSyncUntil > new Date()) {
+            return q.resolve(null);
         }
 
         this._isSyncActiveAll = true;
@@ -347,7 +352,7 @@ export class SyncContext {
             });
 
             if (relationClientColumns.length === 0) {
-                return q.reject("Relation " + relationInfo.parentAssociationName + "/" + relationInfo.childAssociationName + " misses ServerClientMapping");
+                return q.resolve(null);
             }
 
             var relationClientColumn = relationClientColumns[0];
@@ -374,7 +379,7 @@ export class SyncContext {
             });
 
             if (relationClientColumns.length === 0) {
-                return q.reject("Relation " + relationInfo.parentAssociationName + "/" + relationInfo.childAssociationName + " misses ServerClientMapping");
+                return q.resolve(null);
             }
 
             var relationClientColumn = relationClientColumns[0];
@@ -491,7 +496,7 @@ export class SyncContext {
                 r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
                 r[ColDoSync] = false;
 
-                r._IsSyncToServer = true;
+                r._isSyncToServer = true;
 
                 dataModelSync
                     .dataModel
