@@ -69,6 +69,8 @@ export declare class DataModel {
     selectCount(where: any): q.Promise<any>;
     /** returns the column by its name */
     getColumn(columnName: string): dl.IColumn;
+    /** returns the current used DataLayer */
+    getDataLayer(): dl.IDataLayer;
     private createCustomSelectOptions(selectOptions);
     private getBaseTables();
     private getCombinedWhere(selectOptions, customWhere);

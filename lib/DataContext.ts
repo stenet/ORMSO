@@ -386,6 +386,11 @@ export class DataModel {
         return null;
     }
 
+    /** returns the current used DataLayer */
+    getDataLayer(): dl.IDataLayer {
+        return this._dataLayer;
+    }
+
     private createCustomSelectOptions(selectOptions: dl.ISelectOptionsDataContext): dl.ISelectOptionsDataLayer {
         var result = h.Helpers.extend({}, selectOptions);
         result.where = this.getCombinedWhere(selectOptions, result.where);

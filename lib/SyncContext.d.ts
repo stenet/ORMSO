@@ -36,8 +36,11 @@ export declare class SyncContext {
     private alterTable(dataModelSync);
     private getDataModelSync(dataModel);
     private getLoadUrl(dataModelSync, getOptions);
+    private getLastSync(dataModelSync);
     private loadData(url);
     private saveData(dataModelSync, rows);
+    private rowExists(dataModelSync, where);
+    private updateClientIds(dataModelSync);
     private onSyncFromServerBeforeSave(dataModelSync, row);
     private onSyncFromServerAfterSave(dataModelSync, row);
     private onSyncToServerAfterSave(dataModelSync, row);

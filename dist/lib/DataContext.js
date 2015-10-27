@@ -331,6 +331,9 @@ var DataModel = (function () {
         }
         return null;
     };
+    DataModel.prototype.getDataLayer = function () {
+        return this._dataLayer;
+    };
     DataModel.prototype.createCustomSelectOptions = function (selectOptions) {
         var result = h.Helpers.extend({}, selectOptions);
         result.where = this.getCombinedWhere(selectOptions, result.where);

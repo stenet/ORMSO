@@ -119,6 +119,9 @@ export class SyncContext {
 
         return finalizeThen
             .then((): q.Promise<any> => {
+                return this.getLastSync(dataModelSync);
+            })
+            .then((): q.Promise<any> => {
                 this._syncStatus = "Speichere " + dataModelSync.dataModel.tableInfo.table.name;
                 return this.postData(dataModelSync);
             })
@@ -130,6 +133,9 @@ export class SyncContext {
             })
             .then((r): q.Promise<any> => {
                 return this.saveData(dataModelSync, r);
+            })
+            .then((): q.Promise<any> => {
+                return this.updateClientIds(dataModelSync);
             })
             .then((): q.Promise<any> => {
                 if (getOptions) {
@@ -246,6 +252,18 @@ export class SyncContext {
                 }
             });
     }
+    private getLastSync(dataModelSync: IDataModelSync): q.Promise<any> {
+        return syncModel.select({
+            where: [ColTable, dataModelSync.dataModel.tableInfo.table.name]
+        })
+            .then((r): q.Promise<any> => {
+                if (r && r.length > 0) {
+                    dataModelSync.lastSync = r[0].LastSync;
+                }
+
+                return q.resolve(null);
+            });
+    }
 
     private loadData(url: string): q.Promise<any[]> {
         var def = q.defer<any[]>();
@@ -272,27 +290,25 @@ export class SyncContext {
 
         return h.Helpers.qSequential(rows, (row) => {
             index++;
-            this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + "(" + index + "/" + rows.length + ")";
+            this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
 
             row._isSyncFromServer = true;
 
             var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
 
-            return dataModelSync.dataModel.select({
-                where: where
-            })
-                .then((r): q.Promise<any[]> => {
+            return this.rowExists(dataModelSync, where)
+                .then((r): q.Promise<boolean> => {
                     return this
                         .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
                         .then((): q.Promise<any> => {
                             return this.onSyncFromServerBeforeSave(dataModelSync, row);
                         })
-                        .then((): q.Promise<any[]> => {
+                        .then((): q.Promise<boolean> => {
                             return q.resolve(r);
                         });
                 })
                 .then((r): q.Promise<any> => {
-                    if (r.length === 1) {
+                    if (r) {
                         return dataModelSync.dataModel.updateItems(row, where);
                     } else {
                         return dataModelSync.dataModel.insert(row);
@@ -310,8 +326,45 @@ export class SyncContext {
                 });
         });
     }
+    private rowExists(dataModelSync: IDataModelSync, where: any[]): q.Promise<boolean> {
+        if (!dataModelSync.lastSync) {
+            return q.resolve(false);
+        }
+
+        return dataModelSync.dataModel.select({
+            where: where
+        })
+            .then((r: any[]): q.Promise<boolean> => {
+                return q.resolve(r && r.length > 0);
+            });
+    }
+    private updateClientIds(dataModelSync: IDataModelSync): q.Promise<any> {
+        if (dataModelSync.lastSync) {
+            return q.resolve(null);
+        }
+
+        return h.Helpers.qSequential(dataModelSync.syncOptions.serverClientMappings, (mapping: IServerClientColumnMapping) => {
+            var serverColumn = dataModelSync.dataModel.getColumn(mapping.columnServer);
+            var clientColumn = dataModelSync.dataModel.getColumn(mapping.columnClient);
+            var parentDataModel = dataModelSync.dataModel.dataContext.getDataModel(clientColumn.relation.parentTable);
+            var parentDataModelSync = this.getDataModelSync(parentDataModel);
+            
+            var stmt = "update " + dataModelSync.dataModel.tableInfo.table.name
+                + " set " + clientColumn.name
+                + " = (select " + parentDataModel.tableInfo.primaryKey.name
+                + " from " + parentDataModel.tableInfo.table.name
+                + " where " + parentDataModelSync.syncOptions.primaryKeyServerClientMapping.columnServer
+                + " = "
+                + dataModelSync.dataModel.tableInfo.table.name + "." + serverColumn.name + ")";
+
+            return dataModelSync.dataModel.getDataLayer().executeNonQuery(stmt);
+        });
+    }
 
     private onSyncFromServerBeforeSave(dataModelSync: IDataModelSync, row: any): q.Promise<any> {
+        if (!dataModelSync.lastSync) {
+            return q.resolve(null);
+        }
         if (!dataModelSync.syncOptions.serverClientMappings) {
             return q.resolve(null);
         }
@@ -344,6 +397,10 @@ export class SyncContext {
         });
     }
     private onSyncFromServerAfterSave(dataModelSync: IDataModelSync, row: any): q.Promise<any> {
+        if (!dataModelSync.lastSync) {
+            return q.resolve(null);
+        }
+
         return h.Helpers.qSequential(dataModelSync.dataModel.tableInfo.relationsToChild, (relationInfo: dl.IRelationInfo) => {
             var childDataModel = dataModelSync.dataModel.dataContext.getDataModel(relationInfo.childTableInfo.table);
             var childSyncContext = this.getDataModelSync(childDataModel);
