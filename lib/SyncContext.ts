@@ -636,7 +636,7 @@ export class SyncContext {
         h.Helpers.extend(header, this._header);
 
         if (selectOptions) {
-            header["X-Get-Options"] = JSON.parse(selectOptions);
+            header["X-Get-Options"] = JSON.stringify(selectOptions);
         }
 
         return {
