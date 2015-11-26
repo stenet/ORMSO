@@ -129,7 +129,15 @@ export class SyncContext {
                 return this.getLoadUrl(dataModelSync, getOptions);
             })
             .then((r): q.Promise<any[]> => {
-                return this.loadData(r);
+                var selectOptions = null;
+
+                if (dataModelSync.lastSync) {
+                    selectOptions = {
+                        "selectDeleted": true
+                    }
+                }
+
+                return this.loadData(r, selectOptions);
             })
             .then((r): q.Promise<any> => {
                 return this.saveData(dataModelSync, r);
@@ -265,10 +273,10 @@ export class SyncContext {
             });
     }
 
-    private loadData(url: string): q.Promise<any[]> {
+    private loadData(url: string, selectOptions: any): q.Promise<any[]> {
         var def = q.defer<any[]>();
 
-        request(this.getRequestOptions(url), (err, res, body): void => {
+        request(this.getRequestOptions(url, null, null, selectOptions), (err, res, body): void => {
             if (err) {
                 def.reject(err);
             } else if (!h.Helpers.wasRequestSuccessful(res)) {
@@ -623,12 +631,19 @@ export class SyncContext {
         return this.onSaving(dataModelSync, args.item);
     }
 
-    private getRequestOptions(url: string, method?: string, body?: string): request.Options {
+    private getRequestOptions(url: string, method?: string, body?: string, selectOptions?: any): request.Options {
+        var header = {};
+        h.Helpers.extend(header, this._header);
+
+        if (selectOptions) {
+            header["X-Get-Options"] = JSON.parse(selectOptions);
+        }
+
         return {
             method: method || "GET",
             url: url,
             body: body,
-            headers: this._header,
+            headers: header,
             jar: this._cookies
         }
     }

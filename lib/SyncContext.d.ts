@@ -37,7 +37,7 @@ export declare class SyncContext {
     private getDataModelSync(dataModel);
     private getLoadUrl(dataModelSync, getOptions);
     private getLastSync(dataModelSync);
-    private loadData(url);
+    private loadData(url, selectOptions);
     private saveData(dataModelSync, rows);
     private rowExists(dataModelSync, where);
     private updateClientIds(dataModelSync);
@@ -50,5 +50,5 @@ export declare class SyncContext {
     private executeTrigger(dataModelSync, triggerName, row);
     private saveSyncState(dataModelSync, date);
     private checkSyncState(dataModelSync, args);
-    private getRequestOptions(url, method?, body?);
+    private getRequestOptions(url, method?, body?, selectOptions?);
 }
