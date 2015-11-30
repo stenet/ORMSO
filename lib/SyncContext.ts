@@ -63,6 +63,9 @@ export class SyncContext {
     private _syncStatus = "";
 
     constructor() {
+        this.getCurrentServerDate = (): q.Promise<Date> => {
+            return q.resolve(new Date());
+        };
     }
 
     blockSyncUntil: Date;
@@ -90,6 +93,8 @@ export class SyncContext {
         h.Helpers.extend(this._header, header);
     }
 
+    getCurrentServerDate: () => q.Promise<Date>;
+
     isSyncActive(): boolean {
         return this._isSyncActive || this._isSyncActiveAll;
     }
@@ -115,10 +120,15 @@ export class SyncContext {
         }
 
         this._isSyncActive = true;
-        var syncStart = new Date();
+        var syncStart: Date = null;
 
         return finalizeThen
-            .then((): q.Promise<any> => {
+            .then((): q.Promise<Date> => {
+                return this.getCurrentServerDate();
+            })
+            .then((currentDate: Date): q.Promise<any> => {
+                syncStart = currentDate;
+
                 return this.getLastSync(dataModelSync);
             })
             .then((): q.Promise<any> => {

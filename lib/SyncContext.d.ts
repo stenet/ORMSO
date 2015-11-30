@@ -29,6 +29,7 @@ export declare class SyncContext {
     blockSyncUntil: Date;
     addDataModel(dataModel: dc.DataModel, syncOptions: ISyncOptions): void;
     addRequestHeader(header: any): void;
+    getCurrentServerDate: () => q.Promise<Date>;
     isSyncActive(): boolean;
     getSyncStatus(): string;
     sync(dataModel: dc.DataModel, getOptions?: string): q.Promise<any>;
