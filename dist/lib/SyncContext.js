@@ -249,40 +249,62 @@ var SyncContext = (function () {
     SyncContext.prototype.saveData = function (dataModelSync, rows) {
         var _this = this;
         var index = 0;
-        return h.Helpers.qSequential(rows, function (row) {
-            index++;
-            _this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
-            row._isSyncFromServer = true;
-            var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
-            return _this.rowExists(dataModelSync, where)
-                .then(function (r) {
-                return _this
-                    .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
-                    .then(function () {
-                    return _this.onSyncFromServerBeforeSave(dataModelSync, row);
+        var beginFunc = function () {
+            if (rows.length == 0) {
+                return q.resolve(true);
+            }
+            else {
+                return dataModelSync.dataModel.dataContext.dataLayer.executeNonQuery("BEGIN");
+            }
+        };
+        var commitFunc = function () {
+            if (rows.length == 0) {
+                return q.resolve(true);
+            }
+            else {
+                return dataModelSync.dataModel.dataContext.dataLayer.executeNonQuery("COMMIT");
+            }
+        };
+        return beginFunc()
+            .then(function () {
+            return h.Helpers.qSequential(rows, function (row) {
+                index++;
+                _this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
+                row._isSyncFromServer = true;
+                var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
+                return _this.rowExists(dataModelSync, where)
+                    .then(function (r) {
+                    return _this
+                        .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
+                        .then(function () {
+                        return _this.onSyncFromServerBeforeSave(dataModelSync, row);
+                    })
+                        .then(function () {
+                        return q.resolve(r);
+                    });
+                })
+                    .then(function (r) {
+                    if (r) {
+                        return dataModelSync.dataModel.updateItems(row, where);
+                    }
+                    else {
+                        return dataModelSync.dataModel.insert(row);
+                    }
+                })
+                    .then(function (r) {
+                    return _this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
                 })
                     .then(function () {
-                    return q.resolve(r);
+                    return _this.onSyncFromServerAfterSave(dataModelSync, row);
+                })
+                    .then(function () {
+                    delete row._isSyncFromServer;
+                    return q.resolve(null);
                 });
-            })
-                .then(function (r) {
-                if (r) {
-                    return dataModelSync.dataModel.updateItems(row, where);
-                }
-                else {
-                    return dataModelSync.dataModel.insert(row);
-                }
-            })
-                .then(function (r) {
-                return _this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
-            })
-                .then(function () {
-                return _this.onSyncFromServerAfterSave(dataModelSync, row);
-            })
-                .then(function () {
-                delete row._isSyncFromServer;
-                return q.resolve(null);
             });
+        })
+            .finally(function () {
+            return commitFunc();
         });
     };
     SyncContext.prototype.rowExists = function (dataModelSync, where) {

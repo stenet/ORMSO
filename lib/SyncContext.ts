@@ -306,43 +306,64 @@ export class SyncContext {
     private saveData(dataModelSync: IDataModelSync, rows: any[]): q.Promise<any> {
         var index = 0;
 
-        return h.Helpers.qSequential(rows, (row) => {
-            index++;
-            this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
+        var beginFunc = (): q.Promise<any> => {
+            if (rows.length == 0) {
+                return q.resolve(true);
+            } else {
+                return dataModelSync.dataModel.dataContext.dataLayer.executeNonQuery("BEGIN");
+            }
+        };
+        var commitFunc = (): q.Promise<any> => {
+            if (rows.length == 0) {
+                return q.resolve(true);
+            } else {
+                return dataModelSync.dataModel.dataContext.dataLayer.executeNonQuery("COMMIT");
+            }
+        };
 
-            row._isSyncFromServer = true;
+        return beginFunc()
+            .then((): q.Promise<any> => {
+                return h.Helpers.qSequential(rows, (row) => {
+                    index++;
+                    this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
 
-            var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
+                    row._isSyncFromServer = true;
 
-            return this.rowExists(dataModelSync, where)
-                .then((r): q.Promise<boolean> => {
-                    return this
-                        .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
-                        .then((): q.Promise<any> => {
-                            return this.onSyncFromServerBeforeSave(dataModelSync, row);
+                    var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
+
+                    return this.rowExists(dataModelSync, where)
+                        .then((r): q.Promise<boolean> => {
+                            return this
+                                .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
+                                .then((): q.Promise<any> => {
+                                    return this.onSyncFromServerBeforeSave(dataModelSync, row);
+                                })
+                                .then((): q.Promise<boolean> => {
+                                    return q.resolve(r);
+                                });
                         })
-                        .then((): q.Promise<boolean> => {
-                            return q.resolve(r);
+                        .then((r): q.Promise<any> => {
+                            if (r) {
+                                return dataModelSync.dataModel.updateItems(row, where);
+                            } else {
+                                return dataModelSync.dataModel.insert(row);
+                            }
+                        })
+                        .then((r): q.Promise<any> => {
+                            return this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
+                        })
+                        .then((): q.Promise<any> => {
+                            return this.onSyncFromServerAfterSave(dataModelSync, row);
+                        })
+                        .then((): q.Promise<any> => {
+                            delete row._isSyncFromServer;
+                            return q.resolve(null);
                         });
                 })
-                .then((r): q.Promise<any> => {
-                    if (r) {
-                        return dataModelSync.dataModel.updateItems(row, where);
-                    } else {
-                        return dataModelSync.dataModel.insert(row);
-                    }
-                })
-                .then((r): q.Promise<any> => {
-                    return this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
-                })
-                .then((): q.Promise<any> => {
-                    return this.onSyncFromServerAfterSave(dataModelSync, row);
-                })
-                .then((): q.Promise<any> => {
-                    delete row._isSyncFromServer;
-                    return q.resolve(null);
-                });
-        });
+            })
+            .finally((): q.Promise<any> => {
+                return commitFunc();
+            });
     }
     private rowExists(dataModelSync: IDataModelSync, where: any[]): q.Promise<boolean> {
         if (!dataModelSync.lastSync) {
