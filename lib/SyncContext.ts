@@ -92,6 +92,15 @@ export class SyncContext {
     addRequestHeader(header: any): void {
         h.Helpers.extend(this._header, header);
     }
+    resetDataModelSyncState(dataModel: dc.DataModel): q.Promise<any> {
+        var dataModelSync = this.getDataModelSync(dataModel);
+
+        if (!dataModelSync) {
+            return;
+        }
+
+        return this.saveSyncState(dataModelSync, new Date(1900, 1, 1));
+    }
 
     getCurrentServerDate: () => q.Promise<Date>;
 

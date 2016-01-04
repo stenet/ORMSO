@@ -55,6 +55,13 @@ var SyncContext = (function () {
     SyncContext.prototype.addRequestHeader = function (header) {
         h.Helpers.extend(this._header, header);
     };
+    SyncContext.prototype.resetDataModelSyncState = function (dataModel) {
+        var dataModelSync = this.getDataModelSync(dataModel);
+        if (!dataModelSync) {
+            return;
+        }
+        return this.saveSyncState(dataModelSync, new Date(1900, 1, 1));
+    };
     SyncContext.prototype.isSyncActive = function () {
         return this._isSyncActive || this._isSyncActiveAll;
     };
