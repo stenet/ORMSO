@@ -111,7 +111,7 @@ export class DataContext {
     private updateSchema(): q.Promise<any> {
         return h.Helpers
             .qSequential(this.getNonAbstractDataModels(), (dataModel: DataModel) => {
-                return this.dataLayer.updateSchema(dataModel.tableInfo.table);
+                return dataModel.updateSchema();
             });
     }
     private validateTable(table: dl.ITable): void {
@@ -137,6 +137,7 @@ export class DataModel {
     private _afterUpdateCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
     private _beforeDeleteCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
     private _afterDeleteCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
+    private _updateSchemaCallbacks: ((args: ITriggerArgs) => q.Promise<any>)[] = [];
 
     constructor(public dataContext: DataContext, public tableInfo: dl.ITableInfo) {
         this._dataLayer = dataContext.dataLayer;
@@ -170,6 +171,10 @@ export class DataModel {
     /** Add after delete callback */
     onAfterDelete(callback: (args: ITriggerArgs) => q.Promise<any>) {
         this._afterDeleteCallbacks.push(callback);
+    }
+    /** Add update schema callback */
+    onUpdateSchema(callback: (args: ITriggerArgs) => q.Promise<any>) {
+        this._updateSchemaCallbacks.push(callback);
     }
 
     /** Insert the new item into the database */
@@ -389,6 +394,23 @@ export class DataModel {
     /** returns the current used DataLayer */
     getDataLayer(): dl.IDataLayer {
         return this._dataLayer;
+    }
+
+    updateSchema(): q.Promise<any> {
+        return this
+            ._dataLayer
+            .updateSchema(this.tableInfo.table)
+            .then((hasChanged: boolean): q.Promise<any> => {
+                if (hasChanged) {
+                    var args: ITriggerArgs = {
+                        item: null,
+                        cancel: false
+                    }
+                    return this.executeTrigger(args, "_updateSchemaCallbacks");
+                } else {
+                    return q.resolve(null);
+                }
+            });
     }
 
     private createCustomSelectOptions(selectOptions: dl.ISelectOptionsDataContext): dl.ISelectOptionsDataLayer {

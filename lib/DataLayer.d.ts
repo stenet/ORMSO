@@ -76,7 +76,7 @@ export interface IExecuteNonQueryResult {
 }
 export interface IDataLayer {
     /** Validates the database schema and creates indexes and tables/column; does not remove columns (at least now) */
-    updateSchema(table: ITable): q.Promise<any>;
+    updateSchema(table: ITable): q.Promise<boolean>;
     /** Executes a query and returns a promise with the result rows */
     executeQuery(query: string): q.Promise<any[]>;
     /** Executes a non-query (insert, update, delete, ...) and returns a promise with some informations */
@@ -97,7 +97,7 @@ export interface IDataLayer {
 export declare class Sqlite3DataLayer implements IDataLayer {
     private _database;
     constructor(fileName: string);
-    updateSchema(table: ITable): q.Promise<any>;
+    updateSchema(table: ITable): q.Promise<boolean>;
     executeQuery(query: string, parameters?: any | any[]): q.Promise<any[]>;
     executeNonQuery(nonQuery: string, parameters?: any | any[]): q.Promise<IExecuteNonQueryResult>;
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;

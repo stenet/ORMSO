@@ -84,7 +84,7 @@ export interface IExecuteNonQueryResult {
 
 export interface IDataLayer {
     /** Validates the database schema and creates indexes and tables/column; does not remove columns (at least now) */
-    updateSchema(table: ITable): q.Promise<any>;
+    updateSchema(table: ITable): q.Promise<boolean>;
 
     /** Executes a query and returns a promise with the result rows */
     executeQuery(query: string): q.Promise<any[]>;
@@ -115,10 +115,14 @@ export class Sqlite3DataLayer implements IDataLayer {
         });
     }
 
-    updateSchema(table: ITable): q.Promise<any> {
+    updateSchema(table: ITable): q.Promise<boolean> {
         return this.updateTable(table)
-            .then((): q.Promise<any> => {
-                return this.updateIndexes(table);
+            .then((hasChanged: boolean): q.Promise<boolean> => {
+                return this
+                    .updateIndexes(table)
+                    .then((): q.Promise<boolean> => {
+                        return q.resolve(hasChanged);
+                    });
             });
     }
 
@@ -284,7 +288,7 @@ export class Sqlite3DataLayer implements IDataLayer {
         });
     }
 
-    private updateTable(table: ITable): q.Promise<any> {
+    private updateTable(table: ITable): q.Promise<boolean> {
         return this.executeQuery("PRAGMA table_info(" + table.name + ")")
             .then((rows): q.Promise<any> => {
                 if (rows.length === 0) {
@@ -294,7 +298,7 @@ export class Sqlite3DataLayer implements IDataLayer {
                 }
             });
     }
-    private createTable(table: ITable): q.Promise<any> {
+    private createTable(table: ITable): q.Promise<boolean> {
         var statement =
             "create table " + table.name + "("
             + table.columns.map((column): string => {
@@ -302,9 +306,13 @@ export class Sqlite3DataLayer implements IDataLayer {
             }).join(", ")
             + ")";
 
-        return this.executeNonQuery(statement);
+        return this
+            .executeNonQuery(statement)
+            .then((): q.Promise<boolean> => {
+                return q.resolve(true);
+            });
     }
-    private createColumns(table: ITable, existingColumns: string[]): q.Promise<any> {
+    private createColumns(table: ITable, existingColumns: string[]): q.Promise<boolean> {
         var createColumns: IColumn[] = [];
 
         table.columns.forEach((column): void => {
@@ -318,6 +326,9 @@ export class Sqlite3DataLayer implements IDataLayer {
         return h.Helpers
             .qSequential(createColumns, (column) => {
                 return this.createColumn(table, column);
+            })
+            .then((): q.Promise<boolean> => {
+                return q.resolve(createColumns.length > 0);
             });
     }
     private createColumn(table: ITable, column: IColumn): q.Promise<any> {

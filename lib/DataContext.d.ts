@@ -31,6 +31,7 @@ export declare class DataModel {
     private _afterUpdateCallbacks;
     private _beforeDeleteCallbacks;
     private _afterDeleteCallbacks;
+    private _updateSchemaCallbacks;
     constructor(dataContext: DataContext, tableInfo: dl.ITableInfo);
     /** appends a where which will be executed always when reading data by operators */
     registerAdditionalWhere(where: (selectOptions: dl.ISelectOptionsDataContext) => any[]): void;
@@ -46,6 +47,8 @@ export declare class DataModel {
     onBeforeDelete(callback: (args: ITriggerArgs) => q.Promise<any>): void;
     /** Add after delete callback */
     onAfterDelete(callback: (args: ITriggerArgs) => q.Promise<any>): void;
+    /** Add update schema callback */
+    onUpdateSchema(callback: (args: ITriggerArgs) => q.Promise<any>): void;
     /** Insert the new item into the database */
     insert(itemToCreate: any): q.Promise<any>;
     /** Insert the new item into the database and returns the inserted item */
@@ -71,6 +74,7 @@ export declare class DataModel {
     getColumn(columnName: string): dl.IColumn;
     /** returns the current used DataLayer */
     getDataLayer(): dl.IDataLayer;
+    updateSchema(): q.Promise<any>;
     private createCustomSelectOptions(selectOptions);
     private getBaseTables();
     private getCombinedWhere(selectOptions, customWhere);

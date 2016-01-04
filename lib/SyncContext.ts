@@ -84,9 +84,11 @@ export class SyncContext {
             dataModel: dataModel,
             syncOptions: syncOptions
         };
+        dataModel.onUpdateSchema((args): q.Promise<any> => {
+            return this.resetDataModelSyncState(dataModel);
+        });
 
         this._dataModelSyncs.push(dataModelSync);
-
         this.alterTable(dataModelSync);
     }
     addRequestHeader(header: any): void {

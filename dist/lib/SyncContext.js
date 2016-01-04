@@ -38,6 +38,7 @@ var SyncContext = (function () {
         };
     }
     SyncContext.prototype.addDataModel = function (dataModel, syncOptions) {
+        var _this = this;
         var dataModelSync = this.getDataModelSync(dataModel);
         if (dataModelSync) {
             throw Error("DataModel for table " + dataModel.tableInfo.table.name + " has already been added");
@@ -49,6 +50,9 @@ var SyncContext = (function () {
             dataModel: dataModel,
             syncOptions: syncOptions
         };
+        dataModel.onUpdateSchema(function (args) {
+            return _this.resetDataModelSyncState(dataModel);
+        });
         this._dataModelSyncs.push(dataModelSync);
         this.alterTable(dataModelSync);
     };

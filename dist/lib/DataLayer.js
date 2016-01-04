@@ -27,8 +27,12 @@ var Sqlite3DataLayer = (function () {
     Sqlite3DataLayer.prototype.updateSchema = function (table) {
         var _this = this;
         return this.updateTable(table)
-            .then(function () {
-            return _this.updateIndexes(table);
+            .then(function (hasChanged) {
+            return _this
+                .updateIndexes(table)
+                .then(function () {
+                return q.resolve(hasChanged);
+            });
         });
     };
     Sqlite3DataLayer.prototype.executeQuery = function (query, parameters) {
@@ -197,7 +201,11 @@ var Sqlite3DataLayer = (function () {
                 return _this.getColumnCreateStatement(column);
             }).join(", ")
             + ")";
-        return this.executeNonQuery(statement);
+        return this
+            .executeNonQuery(statement)
+            .then(function () {
+            return q.resolve(true);
+        });
     };
     Sqlite3DataLayer.prototype.createColumns = function (table, existingColumns) {
         var _this = this;
@@ -211,6 +219,9 @@ var Sqlite3DataLayer = (function () {
         return h.Helpers
             .qSequential(createColumns, function (column) {
             return _this.createColumn(table, column);
+        })
+            .then(function () {
+            return q.resolve(createColumns.length > 0);
         });
     };
     Sqlite3DataLayer.prototype.createColumn = function (table, column) {

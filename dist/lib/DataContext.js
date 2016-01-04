@@ -87,10 +87,9 @@ var DataContext = (function () {
         });
     };
     DataContext.prototype.updateSchema = function () {
-        var _this = this;
         return h.Helpers
             .qSequential(this.getNonAbstractDataModels(), function (dataModel) {
-            return _this.dataLayer.updateSchema(dataModel.tableInfo.table);
+            return dataModel.updateSchema();
         });
     };
     DataContext.prototype.validateTable = function (table) {
@@ -117,6 +116,7 @@ var DataModel = (function () {
         this._afterUpdateCallbacks = [];
         this._beforeDeleteCallbacks = [];
         this._afterDeleteCallbacks = [];
+        this._updateSchemaCallbacks = [];
         this._dataLayer = dataContext.dataLayer;
     }
     DataModel.prototype.registerAdditionalWhere = function (where) {
@@ -139,6 +139,9 @@ var DataModel = (function () {
     };
     DataModel.prototype.onAfterDelete = function (callback) {
         this._afterDeleteCallbacks.push(callback);
+    };
+    DataModel.prototype.onUpdateSchema = function (callback) {
+        this._updateSchemaCallbacks.push(callback);
     };
     DataModel.prototype.insert = function (itemToCreate) {
         var _this = this;
@@ -333,6 +336,24 @@ var DataModel = (function () {
     };
     DataModel.prototype.getDataLayer = function () {
         return this._dataLayer;
+    };
+    DataModel.prototype.updateSchema = function () {
+        var _this = this;
+        return this
+            ._dataLayer
+            .updateSchema(this.tableInfo.table)
+            .then(function (hasChanged) {
+            if (hasChanged) {
+                var args = {
+                    item: null,
+                    cancel: false
+                };
+                return _this.executeTrigger(args, "_updateSchemaCallbacks");
+            }
+            else {
+                return q.resolve(null);
+            }
+        });
     };
     DataModel.prototype.createCustomSelectOptions = function (selectOptions) {
         var result = h.Helpers.extend({}, selectOptions);

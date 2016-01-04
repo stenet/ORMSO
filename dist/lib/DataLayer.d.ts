@@ -65,7 +65,7 @@ export interface IExecuteNonQueryResult {
     lastId: number;
 }
 export interface IDataLayer {
-    updateSchema(table: ITable): q.Promise<any>;
+    updateSchema(table: ITable): q.Promise<boolean>;
     executeQuery(query: string): q.Promise<any[]>;
     executeNonQuery(nonQuery: string): q.Promise<IExecuteNonQueryResult>;
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
@@ -78,7 +78,7 @@ export interface IDataLayer {
 export declare class Sqlite3DataLayer implements IDataLayer {
     private _database;
     constructor(fileName: string);
-    updateSchema(table: ITable): q.Promise<any>;
+    updateSchema(table: ITable): q.Promise<boolean>;
     executeQuery(query: string, parameters?: any | any[]): q.Promise<any[]>;
     executeNonQuery(nonQuery: string, parameters?: any | any[]): q.Promise<IExecuteNonQueryResult>;
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;
