@@ -334,6 +334,9 @@ var SyncContext = (function () {
         if (dataModelSync.lastSync) {
             return q.resolve(null);
         }
+        if (!dataModelSync.syncOptions.serverClientMappings) {
+            return q.resolve(null);
+        }
         return h.Helpers.qSequential(dataModelSync.syncOptions.serverClientMappings, function (mapping) {
             var serverColumn = dataModelSync.dataModel.getColumn(mapping.columnServer);
             var clientColumn = dataModelSync.dataModel.getColumn(mapping.columnClient);
@@ -388,6 +391,9 @@ var SyncContext = (function () {
         return h.Helpers.qSequential(dataModelSync.dataModel.tableInfo.relationsToChild, function (relationInfo) {
             var childDataModel = dataModelSync.dataModel.dataContext.getDataModel(relationInfo.childTableInfo.table);
             var childSyncContext = _this.getDataModelSync(childDataModel);
+            if (!childSyncContext.syncOptions.serverClientMappings) {
+                return q.resolve(null);
+            }
             var relationClientColumns = childSyncContext.syncOptions.serverClientMappings.filter(function (column) {
                 return column.columnClient === relationInfo.childColumn.name;
             });
@@ -413,6 +419,9 @@ var SyncContext = (function () {
         return h.Helpers.qSequential(dataModelSync.dataModel.tableInfo.relationsToChild, function (relationInfo) {
             var childDataModel = dataModelSync.dataModel.dataContext.getDataModel(relationInfo.childTableInfo.table);
             var childSyncContext = _this.getDataModelSync(childDataModel);
+            if (!childSyncContext.syncOptions.serverClientMappings) {
+                return q.resolve(null);
+            }
             var relationClientColumns = childSyncContext.syncOptions.serverClientMappings.filter(function (column) {
                 return column.columnClient === relationInfo.childColumn.name;
             });
