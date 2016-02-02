@@ -1,6 +1,6 @@
 {
   "name": "ormso",
-  "version": "0.0.95",
+  "version": "0.0.101",
   "description": "JavaScript object mapper to database (currently Sqlite3), sync with other database and publish for clients.",
   "main": "dist/index.js",
   "author": {

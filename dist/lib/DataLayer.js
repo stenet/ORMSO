@@ -418,14 +418,44 @@ var Sqlite3DataLayer = (function () {
         }
         else {
             var columnNames = columnName.split(".");
-            var relationInfos = tableInfo.relationsToParent.filter(function (relation) {
-                return relation.childAssociationName === columnNames[0];
-            });
-            if (relationInfos.length != 1) {
-                throw Error("Relation for fieldname " + columnName + " does not exists");
+            var relations = [];
+            for (var i = 0; i < columnNames.length - 1; i++) {
+                var info;
+                if (i == 0) {
+                    info = tableInfo;
+                }
+                else {
+                    info = relations[i - 1].parentTableInfo;
+                }
+                var relationInfos = info.relationsToParent.filter(function (relation) {
+                    return relation.childAssociationName === columnNames[i];
+                });
+                if (relationInfos.length != 1) {
+                    throw Error("Relation for fieldname " + columnName + " does not exists");
+                }
+                relations.push(relationInfos[0]);
             }
-            return "(select " + columnNames[1] + " from " + relationInfos[0].parentTableInfo.table.name
-                + " where " + relationInfos[0].parentPrimaryKey.name + " = " + tableInfo.table.name + "." + relationInfos[0].childColumn.name + ")";
+            var sql = "";
+            sql += "(select n" + (relations.length - 1) + "." + columnNames[columnNames.length - 1];
+            sql += " from ";
+            for (var i = 0; i < relations.length; i++) {
+                if (i > 0) {
+                    sql += ", ";
+                }
+                sql += relations[i].parentTableInfo.table.name + " n" + i;
+            }
+            sql += " where ";
+            for (var i = 0; i < relations.length; i++) {
+                if (i > 0) {
+                    sql += " and ";
+                    sql += ("n" + i) + "." + relations[i].parentPrimaryKey.name + " = " + ("n" + (i - 1)) + "." + relations[i].childColumn.name;
+                }
+                else {
+                    sql += ("n" + i) + "." + relations[i].parentPrimaryKey.name + " = " + tableInfo.table.name + "." + relations[i].childColumn.name;
+                }
+            }
+            sql += ")";
+            return sql;
         }
     };
     Sqlite3DataLayer.prototype.validateBeforeUpdateToStore = function (table, item) {
