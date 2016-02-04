@@ -381,9 +381,12 @@ export class SyncContext {
             return q.resolve(false);
         }
 
-        return dataModelSync.dataModel.select({
+        var selectOptions = {
             where: where
-        })
+        };
+        this._currentSelectOptions = selectOptions;
+
+        return dataModelSync.dataModel.select(selectOptions)
             .then((r: any[]): q.Promise<boolean> => {
                 return q.resolve(r && r.length > 0);
             });
