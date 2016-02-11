@@ -57,6 +57,11 @@ export interface IRelationInfo {
     childColumn: IColumn;
     childAssociationName: string;
 }
+export interface IPreparedStatements {
+    insert: any;
+    update: any;
+    delete: any;
+}
 
 export enum OrderBySort {
     asc,
@@ -86,6 +91,11 @@ export interface IDataLayer {
     /** Validates the database schema and creates indexes and tables/column; does not remove columns (at least now) */
     updateSchema(table: ITable): q.Promise<boolean>;
 
+    /** Starts a transaction */
+    beginTransaction(): q.Promise<any>;
+    /** Commits a transaction */
+    commitTransaction(): q.Promise<any>;
+
     /** Executes a query and returns a promise with the result rows */
     executeQuery(query: string): q.Promise<any[]>;
     /** Executes a non-query (insert, update, delete, ...) and returns a promise with some informations */
@@ -106,6 +116,8 @@ export interface IDataLayer {
 }
 export class Sqlite3DataLayer implements IDataLayer {
     private _database: sqlite3.Database;
+    private _inTransaction: number = 0;
+    private _preparedStatements: IPreparedStatements;
 
     constructor(fileName: string) {
         this._database = new sqlite3.Database(fileName, (err): void => {
@@ -126,16 +138,52 @@ export class Sqlite3DataLayer implements IDataLayer {
             });
     }
 
+    beginTransaction(): q.Promise<any> {
+        this.executeNonQuery("BEGIN");
+
+        if (this._inTransaction == 0) {
+            this._preparedStatements = {
+                insert: {},
+                update: {},
+                delete: {}
+            };
+        }
+
+        this._inTransaction++;
+
+        return q.resolve(true);
+    }
+    commitTransaction(): q.Promise<any> {
+        this.executeNonQuery("COMMIT");
+        this._inTransaction--;
+
+        if (this._inTransaction == 0) {
+            this._preparedStatements = null;
+        }
+
+        return q.resolve(true);
+    }
+
     executeQuery(query: string, parameters?: any | any[]): q.Promise<any[]> {
         return this.prepareStatement(query)
             .then((preparedStatement): q.Promise<any[]> => {
                 return this.executeAll(preparedStatement, parameters);
+            })
+            .catch((r): q.Promise<any[]> => {
+                console.log(r);
+                console.log(query);
+                return q.reject<any[]>(r);
             });
     }
     executeNonQuery(nonQuery: string, parameters?: any | any[]): q.Promise<IExecuteNonQueryResult> {
         return this.prepareStatement(nonQuery)
             .then((preparedStatement): q.Promise<IExecuteNonQueryResult> => {
                 return this.executeRun(preparedStatement, parameters);
+            })
+            .catch((r): q.Promise<IExecuteNonQueryResult> => {
+                console.log(r);
+                console.log(nonQuery);
+                return q.reject<IExecuteNonQueryResult>(r);
             });
     }
 
@@ -144,18 +192,39 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         this.validateBeforeUpdateToStore(table, item);
 
-        var statement = "insert into " + table.name + " ("
-            + this.getColumns(table, true, false).map((column): string => column.name).join(", ") + ")"
-            + " values ("
-            + this.getColumns(table, true, false).map((column): string => "?").join(", ") + ")";
-
+        var key = tableInfo.table.name;
         var parameters = this.getColumns(table, true, false).map((column): any => item[column.name]);
+        
+        if (!this._preparedStatements || !this._preparedStatements.insert[key]) {
+            var statement = "insert into " + table.name + " ("
+                + this.getColumns(table, true, false).map((column): string => column.name).join(", ") + ")"
+                + " values ("
+                + this.getColumns(table, true, false).map((column): string => "?").join(", ") + ")";
 
-        return this.executeNonQuery(statement, parameters)
-            .then((r): q.Promise<IExecuteNonQueryResult> => {
-                item[tableInfo.primaryKey.name] = r.lastId;
-                return q.resolve(r);
-            });
+            return this.prepareStatement(statement)
+                .then((preparedStatement): q.Promise<IExecuteNonQueryResult> => {
+                    if (this._preparedStatements) {
+                        this._preparedStatements.insert[key] = preparedStatement;
+                    }
+
+                    return this.executeRun(preparedStatement, parameters);
+                })
+                .then((r): q.Promise<IExecuteNonQueryResult> => {
+                    item[tableInfo.primaryKey.name] = r.lastId;
+                    return q.resolve(r);
+                })
+                .catch((r): q.Promise<any> => {
+                    console.log(r);
+                    console.log(statement);
+                    return q.reject(r);
+                });
+        } else {
+            return this.executeRun(this._preparedStatements.insert[key], parameters)
+                .then((r): q.Promise<IExecuteNonQueryResult> => {
+                    item[tableInfo.primaryKey.name] = r.lastId;
+                    return q.resolve(r);
+                });
+        }
     }
     update(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult> {
         var table = tableInfo.table;
@@ -166,17 +235,37 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         this.validateBeforeUpdateToStore(table, item);
 
-        var statement = "update " + table.name + " set "
-            + this.getColumns(table, false, false, item).map((column): string => column.name + " = ?").join(", ")
-            + " where " + tableInfo.primaryKey.name + " = ?";
-
+        var key = tableInfo.table.name;
         var parameters = this.getColumns(table, false, false, item).map((column): any => item[column.name]);
         parameters.push(item[tableInfo.primaryKey.name]);
 
-        return this.executeNonQuery(statement, parameters)
-            .then((r): q.Promise<IExecuteNonQueryResult> => {
-                return q.resolve(r);
-            });
+        if (!this._preparedStatements || !this._preparedStatements.update[key]) {
+            var statement = "update " + table.name + " set "
+                + this.getColumns(table, false, false, item).map((column): string => column.name + " = ?").join(", ")
+                + " where " + tableInfo.primaryKey.name + " = ?";
+
+            return this.prepareStatement(statement)
+                .then((preparedStatement): q.Promise<IExecuteNonQueryResult> => {
+                    if (this._preparedStatements) {
+                        this._preparedStatements.update[key] = preparedStatement;
+                    }
+
+                    return this.executeRun(preparedStatement, parameters);
+                })
+                .then((r): q.Promise<IExecuteNonQueryResult> => {
+                    return q.resolve(r);
+                })
+                .catch((r): q.Promise<any> => {
+                    console.log(r);
+                    console.log(statement);
+                    return q.reject(r);
+                });
+        } else {
+            return this.executeRun(this._preparedStatements.update[key], parameters)
+                .then((r): q.Promise<IExecuteNonQueryResult> => {
+                    return q.resolve(r);
+                });
+        }
     }
     delete(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult> {
         var table = tableInfo.table;
@@ -187,16 +276,36 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         this.validateBeforeUpdateToStore(table, item);
 
-        var statement = "delete from " + table.name
-            + " where " + tableInfo.primaryKey.name + " = ?";
-
+        var key = tableInfo.table.name;
         var parameters: any[] = [];
         parameters.push(item[tableInfo.primaryKey.name]);
 
-        return this.executeNonQuery(statement, parameters)
-            .then((r): q.Promise<IExecuteNonQueryResult> => {
-                return q.resolve(r);
-            });
+        if (!this._preparedStatements || !this._preparedStatements.delete[key]) {
+            var statement = "delete from " + table.name
+                + " where " + tableInfo.primaryKey.name + " = ?";
+
+            return this.prepareStatement(statement)
+                .then((preparedStatement): q.Promise<IExecuteNonQueryResult> => {
+                    if (this._preparedStatements) {
+                        this._preparedStatements.delete[key] = preparedStatement;
+                    }
+
+                    return this.executeRun(preparedStatement, parameters);
+                })
+                .then((r): q.Promise<IExecuteNonQueryResult> => {
+                    return q.resolve(r);
+                })
+                .catch((r): q.Promise<any> => {
+                    console.log(r);
+                    console.log(statement);
+                    return q.reject(r);
+                });
+        } else {
+            return this.executeRun(this._preparedStatements.delete[key], parameters)
+                .then((r): q.Promise<IExecuteNonQueryResult> => {
+                    return q.resolve(r);
+                });
+        }
     }
     select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]> {
         var parameters = {};
@@ -309,7 +418,7 @@ export class Sqlite3DataLayer implements IDataLayer {
         return this
             .executeNonQuery(statement)
             .then((): q.Promise<boolean> => {
-                return q.resolve(true);
+                return q.resolve(false);
             });
     }
     private createColumns(table: ITable, existingColumns: string[]): q.Promise<boolean> {
@@ -355,7 +464,7 @@ export class Sqlite3DataLayer implements IDataLayer {
                 if (rows.length > 0) {
                     return q.resolve(null);
                 } else {
-
+                    return this.createIndex(table, column);
                 }
             });
     }
@@ -469,9 +578,21 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         if (Array.isArray(elements[0])) {
             if (elements.length == 1) {
-                return "(" + this.getSelectWhereComponent(tableInfo, parameters, elements[0]) + ")";
+                var result = this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
+
+                if (result) {
+                    return "(" + result + ")";
+                } else {
+                    return ""; 
+                }
             } else if (Array.isArray(elements[1])) {
-                return "(" + elements.map((x): string => this.getSelectWhereComponent(tableInfo, parameters, x)).join(" and ") + ")";
+                var result = elements.map((x): string => this.getSelectWhereComponent(tableInfo, parameters, x)).join(" and ");
+
+                if (result) {
+                    return "(" + result + ")";
+                } else {
+                    return "";
+                }
             } else if (elements.length >= 3) {
                 var result = this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
 
@@ -480,7 +601,11 @@ export class Sqlite3DataLayer implements IDataLayer {
                     + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
                 }
 
-                return "(" + result + ")";
+                if (result) {
+                    return "(" + result + ")";
+                } else {
+                    return "";
+                }
             } else {
                 throw Error("Invalid filter " + JSON.stringify(where));
             }

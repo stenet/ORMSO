@@ -18,6 +18,7 @@ var DataTypes = exports.DataTypes;
 var OrderBySort = exports.OrderBySort;
 var Sqlite3DataLayer = (function () {
     function Sqlite3DataLayer(fileName) {
+        this._inTransaction = 0;
         this._database = new sqlite3.Database(fileName, function (err) {
             if (err) {
                 throw err;
@@ -35,11 +36,36 @@ var Sqlite3DataLayer = (function () {
             });
         });
     };
+    Sqlite3DataLayer.prototype.beginTransaction = function () {
+        this.executeNonQuery("BEGIN");
+        if (this._inTransaction == 0) {
+            this._preparedStatements = {
+                insert: {},
+                update: {},
+                delete: {}
+            };
+        }
+        this._inTransaction++;
+        return q.resolve(true);
+    };
+    Sqlite3DataLayer.prototype.commitTransaction = function () {
+        this.executeNonQuery("COMMIT");
+        this._inTransaction--;
+        if (this._inTransaction == 0) {
+            this._preparedStatements = null;
+        }
+        return q.resolve(true);
+    };
     Sqlite3DataLayer.prototype.executeQuery = function (query, parameters) {
         var _this = this;
         return this.prepareStatement(query)
             .then(function (preparedStatement) {
             return _this.executeAll(preparedStatement, parameters);
+        })
+            .catch(function (r) {
+            console.log(r);
+            console.log(query);
+            return q.reject(r);
         });
     };
     Sqlite3DataLayer.prototype.executeNonQuery = function (nonQuery, parameters) {
@@ -47,52 +73,121 @@ var Sqlite3DataLayer = (function () {
         return this.prepareStatement(nonQuery)
             .then(function (preparedStatement) {
             return _this.executeRun(preparedStatement, parameters);
+        })
+            .catch(function (r) {
+            console.log(r);
+            console.log(nonQuery);
+            return q.reject(r);
         });
     };
     Sqlite3DataLayer.prototype.insert = function (tableInfo, item) {
+        var _this = this;
         var table = tableInfo.table;
         this.validateBeforeUpdateToStore(table, item);
-        var statement = "insert into " + table.name + " ("
-            + this.getColumns(table, true, false).map(function (column) { return column.name; }).join(", ") + ")"
-            + " values ("
-            + this.getColumns(table, true, false).map(function (column) { return "?"; }).join(", ") + ")";
+        var key = tableInfo.table.name;
         var parameters = this.getColumns(table, true, false).map(function (column) { return item[column.name]; });
-        return this.executeNonQuery(statement, parameters)
-            .then(function (r) {
-            item[tableInfo.primaryKey.name] = r.lastId;
-            return q.resolve(r);
-        });
+        if (!this._preparedStatements || !this._preparedStatements.insert[key]) {
+            var statement = "insert into " + table.name + " ("
+                + this.getColumns(table, true, false).map(function (column) { return column.name; }).join(", ") + ")"
+                + " values ("
+                + this.getColumns(table, true, false).map(function (column) { return "?"; }).join(", ") + ")";
+            return this.prepareStatement(statement)
+                .then(function (preparedStatement) {
+                if (_this._preparedStatements) {
+                    _this._preparedStatements.insert[key] = preparedStatement;
+                }
+                return _this.executeRun(preparedStatement, parameters);
+            })
+                .then(function (r) {
+                item[tableInfo.primaryKey.name] = r.lastId;
+                return q.resolve(r);
+            })
+                .catch(function (r) {
+                console.log(r);
+                console.log(statement);
+                return q.reject(r);
+            });
+        }
+        else {
+            return this.executeRun(this._preparedStatements.insert[key], parameters)
+                .then(function (r) {
+                item[tableInfo.primaryKey.name] = r.lastId;
+                return q.resolve(r);
+            });
+        }
     };
     Sqlite3DataLayer.prototype.update = function (tableInfo, item) {
+        var _this = this;
         var table = tableInfo.table;
         if (!item[tableInfo.primaryKey.name]) {
             throw Error("Trying to update item in " + table.name + ", but item has no primary key");
         }
         this.validateBeforeUpdateToStore(table, item);
-        var statement = "update " + table.name + " set "
-            + this.getColumns(table, false, false, item).map(function (column) { return column.name + " = ?"; }).join(", ")
-            + " where " + tableInfo.primaryKey.name + " = ?";
+        var key = tableInfo.table.name;
         var parameters = this.getColumns(table, false, false, item).map(function (column) { return item[column.name]; });
         parameters.push(item[tableInfo.primaryKey.name]);
-        return this.executeNonQuery(statement, parameters)
-            .then(function (r) {
-            return q.resolve(r);
-        });
+        if (!this._preparedStatements || !this._preparedStatements.update[key]) {
+            var statement = "update " + table.name + " set "
+                + this.getColumns(table, false, false, item).map(function (column) { return column.name + " = ?"; }).join(", ")
+                + " where " + tableInfo.primaryKey.name + " = ?";
+            return this.prepareStatement(statement)
+                .then(function (preparedStatement) {
+                if (_this._preparedStatements) {
+                    _this._preparedStatements.update[key] = preparedStatement;
+                }
+                return _this.executeRun(preparedStatement, parameters);
+            })
+                .then(function (r) {
+                return q.resolve(r);
+            })
+                .catch(function (r) {
+                console.log(r);
+                console.log(statement);
+                return q.reject(r);
+            });
+        }
+        else {
+            return this.executeRun(this._preparedStatements.update[key], parameters)
+                .then(function (r) {
+                return q.resolve(r);
+            });
+        }
     };
     Sqlite3DataLayer.prototype.delete = function (tableInfo, item) {
+        var _this = this;
         var table = tableInfo.table;
         if (!item[tableInfo.primaryKey.name]) {
             throw Error("Trying to delete item in " + table.name + ", but item has no primary key");
         }
         this.validateBeforeUpdateToStore(table, item);
-        var statement = "delete from " + table.name
-            + " where " + tableInfo.primaryKey.name + " = ?";
+        var key = tableInfo.table.name;
         var parameters = [];
         parameters.push(item[tableInfo.primaryKey.name]);
-        return this.executeNonQuery(statement, parameters)
-            .then(function (r) {
-            return q.resolve(r);
-        });
+        if (!this._preparedStatements || !this._preparedStatements.delete[key]) {
+            var statement = "delete from " + table.name
+                + " where " + tableInfo.primaryKey.name + " = ?";
+            return this.prepareStatement(statement)
+                .then(function (preparedStatement) {
+                if (_this._preparedStatements) {
+                    _this._preparedStatements.delete[key] = preparedStatement;
+                }
+                return _this.executeRun(preparedStatement, parameters);
+            })
+                .then(function (r) {
+                return q.resolve(r);
+            })
+                .catch(function (r) {
+                console.log(r);
+                console.log(statement);
+                return q.reject(r);
+            });
+        }
+        else {
+            return this.executeRun(this._preparedStatements.delete[key], parameters)
+                .then(function (r) {
+                return q.resolve(r);
+            });
+        }
     };
     Sqlite3DataLayer.prototype.select = function (tableInfo, selectOptions) {
         var _this = this;
@@ -204,7 +299,7 @@ var Sqlite3DataLayer = (function () {
         return this
             .executeNonQuery(statement)
             .then(function () {
-            return q.resolve(true);
+            return q.resolve(false);
         });
     };
     Sqlite3DataLayer.prototype.createColumns = function (table, existingColumns) {
@@ -241,12 +336,14 @@ var Sqlite3DataLayer = (function () {
         });
     };
     Sqlite3DataLayer.prototype.updateIndex = function (table, column) {
+        var _this = this;
         return this.executeQuery("PRAGMA index_info(" + this.getIndexName(table, column) + ")")
             .then(function (rows) {
             if (rows.length > 0) {
                 return q.resolve(null);
             }
             else {
+                return _this.createIndex(table, column);
             }
         });
     };
@@ -349,10 +446,22 @@ var Sqlite3DataLayer = (function () {
         }
         if (Array.isArray(elements[0])) {
             if (elements.length == 1) {
-                return "(" + this.getSelectWhereComponent(tableInfo, parameters, elements[0]) + ")";
+                var result = this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
+                if (result) {
+                    return "(" + result + ")";
+                }
+                else {
+                    return "";
+                }
             }
             else if (Array.isArray(elements[1])) {
-                return "(" + elements.map(function (x) { return _this.getSelectWhereComponent(tableInfo, parameters, x); }).join(" and ") + ")";
+                var result = elements.map(function (x) { return _this.getSelectWhereComponent(tableInfo, parameters, x); }).join(" and ");
+                if (result) {
+                    return "(" + result + ")";
+                }
+                else {
+                    return "";
+                }
             }
             else if (elements.length >= 3) {
                 var result = this.getSelectWhereComponent(tableInfo, parameters, elements[0]);
@@ -360,7 +469,12 @@ var Sqlite3DataLayer = (function () {
                     result += " " + elements[index]
                         + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1]);
                 }
-                return "(" + result + ")";
+                if (result) {
+                    return "(" + result + ")";
+                }
+                else {
+                    return "";
+                }
             }
             else {
                 throw Error("Invalid filter " + JSON.stringify(where));

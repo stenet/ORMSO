@@ -41,7 +41,7 @@ export declare class SyncContext {
     private getLastSync(dataModelSync);
     private loadData(url, selectOptions);
     private saveData(dataModelSync, rows);
-    private rowExists(dataModelSync, where);
+    private getExistingIds(dataModelSync);
     private updateClientIds(dataModelSync);
     private onSyncFromServerBeforeSave(dataModelSync, row);
     private onSyncFromServerAfterSave(dataModelSync, row);

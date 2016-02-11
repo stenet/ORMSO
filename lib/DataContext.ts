@@ -51,6 +51,7 @@ export class DataContext {
                 return this.addRelationInfoToTableInfo();
             });
     }
+
     hasFinalizeDone(): boolean {
         return this._hasFinalizeDone;
     }

@@ -51,6 +51,11 @@ export interface IRelationInfo {
     childColumn: IColumn;
     childAssociationName: string;
 }
+export interface IPreparedStatements {
+    insert: any;
+    update: any;
+    delete: any;
+}
 export declare enum OrderBySort {
     asc = 0,
     desc = 1,
@@ -77,6 +82,10 @@ export interface IExecuteNonQueryResult {
 export interface IDataLayer {
     /** Validates the database schema and creates indexes and tables/column; does not remove columns (at least now) */
     updateSchema(table: ITable): q.Promise<boolean>;
+    /** Starts a transaction */
+    beginTransaction(): q.Promise<any>;
+    /** Commits a transaction */
+    commitTransaction(): q.Promise<any>;
     /** Executes a query and returns a promise with the result rows */
     executeQuery(query: string): q.Promise<any[]>;
     /** Executes a non-query (insert, update, delete, ...) and returns a promise with some informations */
@@ -96,8 +105,12 @@ export interface IDataLayer {
 }
 export declare class Sqlite3DataLayer implements IDataLayer {
     private _database;
+    private _inTransaction;
+    private _preparedStatements;
     constructor(fileName: string);
     updateSchema(table: ITable): q.Promise<boolean>;
+    beginTransaction(): q.Promise<any>;
+    commitTransaction(): q.Promise<any>;
     executeQuery(query: string, parameters?: any | any[]): q.Promise<any[]>;
     executeNonQuery(nonQuery: string, parameters?: any | any[]): q.Promise<IExecuteNonQueryResult>;
     insert(tableInfo: ITableInfo, item: any): q.Promise<IExecuteNonQueryResult>;

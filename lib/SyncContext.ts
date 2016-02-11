@@ -27,7 +27,6 @@ var finalizeThen = ctx.finalizeInitialize()
     .catch((r): void => {
         console.log(r);
     });
-
 export interface IServerClientColumnMapping {
     columnServer: string;
     columnClient: string;
@@ -321,54 +320,63 @@ export class SyncContext {
             if (rows.length == 0) {
                 return q.resolve(true);
             } else {
-                return dataModelSync.dataModel.dataContext.dataLayer.executeNonQuery("BEGIN");
+                return dataModelSync.dataModel.dataContext.dataLayer.beginTransaction();
             }
         };
         var commitFunc = (): q.Promise<any> => {
             if (rows.length == 0) {
                 return q.resolve(true);
             } else {
-                return dataModelSync.dataModel.dataContext.dataLayer.executeNonQuery("COMMIT");
+                return dataModelSync.dataModel.dataContext.dataLayer.commitTransaction();;
             }
         };
 
         return beginFunc()
             .then((): q.Promise<any> => {
-                return h.Helpers.qSequential(rows, (row) => {
-                    index++;
-                    this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
+                var existingIds = {};
 
-                    row._isSyncFromServer = true;
+                return this.getExistingIds(dataModelSync)
+                    .then((r): q.Promise<any> => {
+                        existingIds = r;
+                        return q.resolve(true);
+                    }).then((): q.Promise<any> => {
+                        return h.Helpers.qSequential(rows, (row) => {
+                            index++;
+                            this._syncStatus = "Lade " + dataModelSync.dataModel.tableInfo.table.name + " (" + index + "/" + rows.length + ")";
 
-                    var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
+                            row._isSyncFromServer = true;
 
-                    return this.rowExists(dataModelSync, where)
-                        .then((r): q.Promise<boolean> => {
-                            return this
-                                .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
-                                .then((): q.Promise<any> => {
-                                    return this.onSyncFromServerBeforeSave(dataModelSync, row);
+                            var where = [dataModelSync.syncOptions.serverPrimaryKey.name, row[dataModelSync.syncOptions.serverPrimaryKey.name]];
+                            var exists = existingIds[row[dataModelSync.syncOptions.serverPrimaryKey.name]] != undefined;
+
+                            return q.resolve(exists)
+                                .then((r): q.Promise<boolean> => {
+                                    return this
+                                        .executeTrigger(dataModelSync, "onSyncFromServerBeforeSave", row)
+                                        .then((): q.Promise<any> => {
+                                            return this.onSyncFromServerBeforeSave(dataModelSync, row);
+                                        })
+                                        .then((): q.Promise<boolean> => {
+                                            return q.resolve(r);
+                                        });
                                 })
-                                .then((): q.Promise<boolean> => {
-                                    return q.resolve(r);
+                                .then((r): q.Promise<any> => {
+                                    if (r) {
+                                        return dataModelSync.dataModel.updateItems(row, where);
+                                    } else {
+                                        return dataModelSync.dataModel.insert(row);
+                                    }
+                                })
+                                .then((r): q.Promise<any> => {
+                                    return this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
+                                })
+                                .then((): q.Promise<any> => {
+                                    return this.onSyncFromServerAfterSave(dataModelSync, row);
+                                })
+                                .then((): q.Promise<any> => {
+                                    delete row._isSyncFromServer;
+                                    return q.resolve(null);
                                 });
-                        })
-                        .then((r): q.Promise<any> => {
-                            if (r) {
-                                return dataModelSync.dataModel.updateItems(row, where);
-                            } else {
-                                return dataModelSync.dataModel.insert(row);
-                            }
-                        })
-                        .then((r): q.Promise<any> => {
-                            return this.executeTrigger(dataModelSync, "onSyncFromServerAfterSave", row);
-                        })
-                        .then((): q.Promise<any> => {
-                            return this.onSyncFromServerAfterSave(dataModelSync, row);
-                        })
-                        .then((): q.Promise<any> => {
-                            delete row._isSyncFromServer;
-                            return q.resolve(null);
                         });
                 })
             })
@@ -376,19 +384,21 @@ export class SyncContext {
                 return commitFunc();
             });
     }
-    private rowExists(dataModelSync: IDataModelSync, where: any[]): q.Promise<boolean> {
-        if (!dataModelSync.lastSync) {
-            return q.resolve(false);
-        }
-
-        var selectOptions = {
-            where: where
+    private getExistingIds(dataModelSync: IDataModelSync): q.Promise<any> {
+        var selectOptions: dl.ISelectOptionsDataContext = {
+            columns: [dataModelSync.syncOptions.serverPrimaryKey.name]
         };
         this._currentSelectOptions = selectOptions;
 
         return dataModelSync.dataModel.select(selectOptions)
-            .then((r: any[]): q.Promise<boolean> => {
-                return q.resolve(r && r.length > 0);
+            .then((r: any[]): q.Promise<any> => {
+                var result = {};
+
+                r.forEach((item): void => {
+                    result[item[dataModelSync.syncOptions.serverPrimaryKey.name]] = true;
+                });
+
+                return q.resolve(result);
             });
     }
     private updateClientIds(dataModelSync: IDataModelSync): q.Promise<any> {
