@@ -13,6 +13,7 @@ export interface ISyncOptions {
     maxSyncIntervalMinutes?: number;
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
+    onSyncToServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
     primaryKeyServerClientMapping?: IServerClientColumnMapping;
     serverClientMappings?: IServerClientColumnMapping[];

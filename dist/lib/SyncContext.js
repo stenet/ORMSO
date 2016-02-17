@@ -517,42 +517,58 @@ var SyncContext = (function () {
         var url = isDeleted
             ? dataModelSync.syncOptions.postUrl + "/" + data[dataModelSync.syncOptions.serverPrimaryKey.name]
             : dataModelSync.syncOptions.postUrl;
-        var body = isDeleted
-            ? null
-            : JSON.stringify(data);
-        request(this.getRequestOptions(url, method, body), function (err, res, r) {
-            if (err) {
-                def.resolve(err);
-                return;
-            }
-            else if (!h.Helpers.wasRequestSuccessful(res)) {
-                def.reject(h.Helpers.getRequestError(res));
-                return;
-            }
-            if (r) {
-                r = JSON.parse(r);
-            }
-            else {
-                r = data;
-            }
-            r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
-            r[ColDoSync] = false;
-            r._isSyncToServer = true;
-            dataModelSync
-                .dataModel
-                .updateAndSelect(r)
-                .then(function (r) {
-                return _this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
-            })
-                .then(function () {
-                return _this.onSyncToServerAfterSave(dataModelSync, r);
-            })
-                .then(function (r) {
-                def.resolve(true);
-            })
-                .catch(function (r) {
-                def.reject(r);
+        var hasServerPrimaryKey = data[dataModelSync.syncOptions.serverPrimaryKey.name] != undefined
+            && data[dataModelSync.syncOptions.serverPrimaryKey.name] != null
+            && data[dataModelSync.syncOptions.serverPrimaryKey.name] != 0
+            && data[dataModelSync.syncOptions.serverPrimaryKey.name] != "";
+        this.executeTrigger(dataModelSync, "onSyncToServerBeforeSave", data)
+            .then(function () {
+            var body = isDeleted
+                ? null
+                : JSON.stringify(data);
+            request(_this.getRequestOptions(url, method, body), function (err, res, r) {
+                if (err) {
+                    def.resolve(err);
+                    return;
+                }
+                else if (!h.Helpers.wasRequestSuccessful(res)) {
+                    def.reject(h.Helpers.getRequestError(res));
+                    return;
+                }
+                if (r) {
+                    r = JSON.parse(r);
+                }
+                else {
+                    r = data;
+                }
+                r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
+                r[ColDoSync] = false;
+                r._isSyncToServer = true;
+                dataModelSync
+                    .dataModel
+                    .updateAndSelect(r)
+                    .then(function (r) {
+                    if (hasServerPrimaryKey) {
+                        r.__insertedOnServer = false;
+                    }
+                    else {
+                        r.__insertedOnServer = true;
+                    }
+                    return _this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
+                })
+                    .then(function () {
+                    return _this.onSyncToServerAfterSave(dataModelSync, r);
+                })
+                    .then(function (r) {
+                    def.resolve(true);
+                })
+                    .catch(function (r) {
+                    def.reject(r);
+                });
             });
+        })
+            .catch(function (r) {
+            def.reject(r);
         });
         return def.promise;
     };

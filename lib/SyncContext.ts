@@ -42,6 +42,7 @@ export interface ISyncOptions {
 
     onSyncFromServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncFromServerAfterSave?: (row: any) => q.Promise<any>;
+    onSyncToServerBeforeSave?: (row: any) => q.Promise<any>;
     onSyncToServerAfterSave?: (row: any) => q.Promise<any>;
 
     primaryKeyServerClientMapping?: IServerClientColumnMapping;
@@ -605,47 +606,64 @@ export class SyncContext {
             ? dataModelSync.syncOptions.postUrl + "/" + data[dataModelSync.syncOptions.serverPrimaryKey.name]
             : dataModelSync.syncOptions.postUrl;
 
-        var body = isDeleted
-            ? null
-            : JSON.stringify(data);
+        var hasServerPrimaryKey = data[dataModelSync.syncOptions.serverPrimaryKey.name] != undefined
+            && data[dataModelSync.syncOptions.serverPrimaryKey.name] != null
+            && data[dataModelSync.syncOptions.serverPrimaryKey.name] != 0
+            && data[dataModelSync.syncOptions.serverPrimaryKey.name] != "";
 
-        request(
-            this.getRequestOptions(url, method, body),
-            (err, res, r): void => {
-                if (err) {
-                    def.resolve(err);
-                    return;
-                } else if (!h.Helpers.wasRequestSuccessful(res)) {
-                    def.reject(h.Helpers.getRequestError(res));
-                    return;
-                }
+        this.executeTrigger(dataModelSync, "onSyncToServerBeforeSave", data)
+            .then(() => {
+                var body = isDeleted
+                    ? null
+                    : JSON.stringify(data);
 
-                if (r) {
-                    r = JSON.parse(r);
-                } else {
-                    r = data;
-                }
+                request(
+                    this.getRequestOptions(url, method, body),
+                    (err, res, r): void => {
+                        if (err) {
+                            def.resolve(err);
+                            return;
+                        } else if (!h.Helpers.wasRequestSuccessful(res)) {
+                            def.reject(h.Helpers.getRequestError(res));
+                            return;
+                        }
 
-                r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
-                r[ColDoSync] = false;
+                        if (r) {
+                            r = JSON.parse(r);
+                        } else {
+                            r = data;
+                        }
 
-                r._isSyncToServer = true;
+                        r[dataModelSync.dataModel.tableInfo.primaryKey.name] = data[dataModelSync.dataModel.tableInfo.primaryKey.name];
+                        r[ColDoSync] = false;
 
-                dataModelSync
-                    .dataModel
-                    .updateAndSelect(r)
-                    .then((r): q.Promise<any> => {
-                        return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
-                    })
-                    .then((): q.Promise<any> => {
-                        return this.onSyncToServerAfterSave(dataModelSync, r);
-                    })
-                    .then((r) => {
-                        def.resolve(true);
-                    })
-                    .catch((r): void => {
-                        def.reject(r);
+                        r._isSyncToServer = true;
+
+                        dataModelSync
+                            .dataModel
+                            .updateAndSelect(r)
+                            .then((r): q.Promise<any> => {
+                                if (hasServerPrimaryKey) {
+                                    r.__insertedOnServer = false;
+                                } else {
+                                    r.__insertedOnServer = true;
+                                }
+
+                                return this.executeTrigger(dataModelSync, "onSyncToServerAfterSave", r);
+                            })
+                            .then((): q.Promise<any> => {
+                                return this.onSyncToServerAfterSave(dataModelSync, r);
+                            })
+                            .then((r) => {
+                                def.resolve(true);
+                            })
+                            .catch((r): void => {
+                                def.reject(r);
+                            });
                     });
+            })
+            .catch((r): void => {
+                def.reject(r);
             });
 
         return def.promise;
