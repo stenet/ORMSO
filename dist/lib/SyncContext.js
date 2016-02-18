@@ -17,9 +17,26 @@ var syncModel = ctx.createDataModel({
         { name: "LastSync", dataType: dl.DataTypes.date }
     ]
 });
+var syncLogModel = ctx.createDataModel({
+    name: "sync_log_status",
+    columns: [
+        { name: "Id", dataType: dl.DataTypes.int, isPrimaryKey: true },
+        { name: "LastId", dataType: dl.DataTypes.int },
+        { name: "LastSync", dataType: dl.DataTypes.date }
+    ]
+});
 var finalizeThen = ctx.finalizeInitialize()
     .then(function () {
-    return q.resolve(null);
+    return syncLogModel
+        .selectById(1)
+        .then(function (r) {
+        if (r) {
+            return q.resolve(true);
+        }
+        else {
+            return syncLogModel.updateOrInsert({ Id: 1, LastId: 0, LastSync: new Date() });
+        }
+    });
 })
     .catch(function (r) {
     console.log(r);
@@ -102,22 +119,42 @@ var SyncContext = (function () {
             return _this.postData(dataModelSync);
         })
             .then(function () {
-            return _this.getLoadUrl(dataModelSync, getOptions);
-        })
-            .then(function (r) {
-            var selectOptions = null;
-            if (dataModelSync.lastSync) {
-                selectOptions = {
-                    "selectDeleted": true
-                };
+            if (_this.canGetSync(dataModelSync)) {
+                return _this.getLoadUrl(dataModelSync, getOptions);
             }
-            return _this.loadData(r, selectOptions);
+            else {
+                return q.resolve("");
+            }
         })
             .then(function (r) {
-            return _this.saveData(dataModelSync, r);
+            if (_this.canGetSync(dataModelSync)) {
+                var selectOptions = null;
+                if (dataModelSync.lastSync) {
+                    selectOptions = {
+                        "selectDeleted": true
+                    };
+                }
+                return _this.loadData(r, selectOptions);
+            }
+            else {
+                return q.resolve([]);
+            }
+        })
+            .then(function (r) {
+            if (_this.canGetSync(dataModelSync)) {
+                return _this.saveData(dataModelSync, r);
+            }
+            else {
+                return q.resolve(true);
+            }
         })
             .then(function () {
-            return _this.updateClientIds(dataModelSync);
+            if (_this.canGetSync(dataModelSync)) {
+                return _this.updateClientIds(dataModelSync);
+            }
+            else {
+                return q.resolve(true);
+            }
         })
             .then(function () {
             if (getOptions) {
@@ -140,6 +177,78 @@ var SyncContext = (function () {
             return q.resolve(null);
         });
     };
+    SyncContext.prototype.syncLogModel = function () {
+        var _this = this;
+        if (!this.syncLogUrl) {
+            return q.resolve(true);
+        }
+        else {
+            return syncLogModel
+                .selectById(1)
+                .then(function (r) {
+                if (r.LastId == 0) {
+                    var def = q.defer();
+                    request(_this.getRequestOptions(_this.maxLogIdUrl, null, null, null), function (err, res, body) {
+                        if (err) {
+                            def.reject(err);
+                        }
+                        else if (!h.Helpers.wasRequestSuccessful(res)) {
+                            def.reject(h.Helpers.getRequestError(res));
+                        }
+                        else {
+                            r.LastId = body;
+                            syncLogModel
+                                .update(r)
+                                .then(function () {
+                                def.resolve(r);
+                            })
+                                .catch(function (x) {
+                                def.reject(x);
+                            });
+                        }
+                    });
+                    return def.promise;
+                }
+                else {
+                    return q.resolve(r);
+                }
+            })
+                .then(function (r) {
+                var def = q.defer();
+                var url = _this.syncLogUrl + "?take=500&lastId=" + r.LastId;
+                request(_this.getRequestOptions(url, null, null, null), function (err, res, body) {
+                    if (err) {
+                        def.reject(err);
+                    }
+                    else if (!h.Helpers.wasRequestSuccessful(res)) {
+                        def.reject(h.Helpers.getRequestError(res));
+                    }
+                    else {
+                        def.resolve(JSON.parse(body));
+                    }
+                });
+                return def.promise;
+            })
+                .then(function (r) {
+                return h.Helpers.qSequential(r, function (item) {
+                    _this._syncStatus = "Bearbeite Log " + item.Id;
+                    return _this.doSyncLog(item)
+                        .then(function () {
+                        return syncLogModel.selectById(1)
+                            .then(function (r) {
+                            r.LastId = item.Id;
+                            r.LastSync = new Date();
+                            return syncLogModel.update(r);
+                        });
+                    });
+                });
+            })
+                .then(function () {
+                _this._syncStatus = "";
+                return q.resolve(true);
+            });
+        }
+    };
     SyncContext.prototype.syncAll = function (checkSyncBlock) {
         var _this = this;
         if (this._isSyncActiveAll) {
@@ -151,6 +260,9 @@ var SyncContext = (function () {
         this._isSyncActiveAll = true;
         return h.Helpers.qSequential(this._dataModelSyncs, function (item) {
             return _this.sync(item.dataModel);
+        })
+            .then(function () {
+            return _this.syncLogModel();
         })
             .then(function () {
             _this._isSyncActiveAll = false;
@@ -188,6 +300,17 @@ var SyncContext = (function () {
             args.cancel = true;
             return dataModel.update(args.item);
         });
+    };
+    SyncContext.prototype.getDataModel = function (tableName) {
+        var results = this._dataModelSyncs.filter(function (item) {
+            return item.dataModel.tableInfo.table.name == tableName;
+        });
+        if (results.length == 1) {
+            return results[0].dataModel;
+        }
+        else {
+            return null;
+        }
     };
     SyncContext.prototype.getDataModelSync = function (dataModel) {
         var items = this._dataModelSyncs.filter(function (item) {
@@ -235,8 +358,66 @@ var SyncContext = (function () {
             if (r && r.length > 0) {
                 dataModelSync.lastSync = r[0].LastSync;
             }
+            else {
+                dataModelSync.lastSync = null;
+            }
             return q.resolve(null);
         });
+    };
+    SyncContext.prototype.canGetSync = function (dataModelSync) {
+        return !dataModelSync.syncOptions.onlySyncOnNewDatabase || !dataModelSync.lastSync;
+    };
+    SyncContext.prototype.doSyncLog = function (item) {
+        var _this = this;
+        var dataModel = this.getDataModel(item.TableName);
+        if (!dataModel) {
+            return q.resolve(true);
+        }
+        if (item.ChangeType == 0) {
+            if (!item.Data) {
+                return q.resolve(true);
+            }
+            var dataModelSync = this.getDataModelSync(dataModel);
+            return this
+                .saveData(dataModelSync, [JSON.parse(item.Data)])
+                .then(function () {
+                return _this.updateClientIds(dataModelSync);
+            });
+        }
+        else if (item.ChangeType == 1) {
+            return dataModel
+                .selectById(item.Key)
+                .then(function (r) {
+                if (r) {
+                    return dataModel.delete(r);
+                }
+                else {
+                    return q.resolve(true);
+                }
+            });
+        }
+        else if (item.ChangeType == 2) {
+            return dataModel.dataContext.dataLayer
+                .executeNonQuery("delete from " + dataModel.tableInfo.table.name)
+                .then(function () {
+                return syncModel.select({
+                    where: [ColTable, dataModel.tableInfo.table.name]
+                }).then(function (r) {
+                    if (!r || r.length == 0) {
+                        return q.resolve(true);
+                    }
+                    else {
+                        return syncModel.delete(r[0]);
+                    }
+                });
+            })
+                .then(function () {
+                return _this.sync(dataModel);
+            });
+        }
+        else {
+            return q.resolve(true);
+        }
     };
     SyncContext.prototype.loadData = function (url, selectOptions) {
         var def = q.defer();
@@ -277,10 +458,13 @@ var SyncContext = (function () {
                 ;
             }
         };
+        if (rows.length > 0) {
+            console.log(dataModelSync.dataModel.tableInfo.table.name + ": Get " + rows.length + " Datensätze");
+        }
         return beginFunc()
             .then(function () {
             var existingIds = {};
-            return _this.getExistingIds(dataModelSync)
+            return _this.getExistingIds(dataModelSync, rows)
                 .then(function (r) {
                 existingIds = r;
                 return q.resolve(true);
@@ -327,11 +511,14 @@ var SyncContext = (function () {
             return commitFunc();
         });
     };
-    SyncContext.prototype.getExistingIds = function (dataModelSync) {
+    SyncContext.prototype.getExistingIds = function (dataModelSync, rows) {
         var selectOptions = {
             columns: [dataModelSync.syncOptions.serverPrimaryKey.name]
         };
         this._currentSelectOptions = selectOptions;
+        if (rows.length == 1) {
+            selectOptions.where = [dataModelSync.syncOptions.serverPrimaryKey.name, rows[0][dataModelSync.syncOptions.serverPrimaryKey.name]];
+        }
         return dataModelSync.dataModel.select(selectOptions)
             .then(function (r) {
             var result = {};
@@ -346,22 +533,57 @@ var SyncContext = (function () {
         if (dataModelSync.lastSync) {
             return q.resolve(null);
         }
-        if (!dataModelSync.syncOptions.serverClientMappings) {
-            return q.resolve(null);
-        }
-        return h.Helpers.qSequential(dataModelSync.syncOptions.serverClientMappings, function (mapping) {
-            var serverColumn = dataModelSync.dataModel.getColumn(mapping.columnServer);
-            var clientColumn = dataModelSync.dataModel.getColumn(mapping.columnClient);
-            var parentDataModel = dataModelSync.dataModel.dataContext.getDataModel(clientColumn.relation.parentTable);
-            var parentDataModelSync = _this.getDataModelSync(parentDataModel);
-            var stmt = "update " + dataModelSync.dataModel.tableInfo.table.name
-                + " set " + clientColumn.name
-                + " = (select " + parentDataModel.tableInfo.primaryKey.name
-                + " from " + parentDataModel.tableInfo.table.name
-                + " where " + parentDataModelSync.syncOptions.primaryKeyServerClientMapping.columnServer
-                + " = "
-                + dataModelSync.dataModel.tableInfo.table.name + "." + serverColumn.name + ")";
-            return dataModelSync.dataModel.getDataLayer().executeNonQuery(stmt);
+        return q.resolve(true)
+            .then(function () {
+            if (!dataModelSync.syncOptions.serverClientMappings) {
+                return q.resolve(null);
+            }
+            return h.Helpers.qSequential(dataModelSync.syncOptions.serverClientMappings, function (mapping) {
+                var serverColumn = dataModelSync.dataModel.getColumn(mapping.columnServer);
+                var clientColumn = dataModelSync.dataModel.getColumn(mapping.columnClient);
+                var parentDataModel = dataModelSync.dataModel.dataContext.getDataModel(clientColumn.relation.parentTable);
+                var parentDataModelSync = _this.getDataModelSync(parentDataModel);
+                var stmt = "update " + dataModelSync.dataModel.tableInfo.table.name
+                    + " set " + clientColumn.name
+                    + " = (select " + parentDataModel.tableInfo.primaryKey.name
+                    + " from " + parentDataModel.tableInfo.table.name
+                    + " where " + parentDataModelSync.syncOptions.primaryKeyServerClientMapping.columnServer
+                    + " = "
+                    + dataModelSync.dataModel.tableInfo.table.name + "." + serverColumn.name + ")";
+                return dataModelSync.dataModel.getDataLayer().executeNonQuery(stmt);
+            });
+        }).then(function () {
+            return h.Helpers.qSequential(dataModelSync.dataModel.tableInfo.relationsToChild, function (relation) {
+                if (!dataModelSync.syncOptions.primaryKeyServerClientMapping) {
+                    return q.resolve(true);
+                }
+                var childDataModel = _this.getDataModel(relation.childTableInfo.table.name);
+                if (!childDataModel) {
+                    return q.resolve(true);
+                }
+                var childDataModelSync = _this.getDataModelSync(childDataModel);
+                if (!childDataModelSync) {
+                    return q.resolve(true);
+                }
+                if (!childDataModelSync.syncOptions.serverClientMappings) {
+                    return q.resolve(true);
+                }
+                var mapping = childDataModelSync.syncOptions.serverClientMappings.filter(function (item) {
+                    return item.columnClient == relation.childColumn.name;
+                });
+                if (mapping.length != 1) {
+                    return q.resolve(true);
+                }
+                var stmt = "update " + relation.childTableInfo.table.name
+                    + " set " + relation.childColumn.name
+                    + " = (select " + relation.parentPrimaryKey.name
+                    + " from " + relation.parentTableInfo.table.name
+                    + " where " + dataModelSync.syncOptions.primaryKeyServerClientMapping.columnServer
+                    + " = "
+                    + relation.childTableInfo.table.name + "." + mapping[0].columnServer + ")"
+                    + " where " + mapping[0].columnServer + " is not null";
+                return dataModelSync.dataModel.getDataLayer().executeNonQuery(stmt);
+            });
         });
     };
     SyncContext.prototype.onSyncFromServerBeforeSave = function (dataModelSync, row) {
@@ -498,6 +720,9 @@ var SyncContext = (function () {
             .dataModel
             .select(selectOptions)
             .then(function (r) {
+            if (r.length > 0) {
+                console.log(dataModelSync.dataModel.tableInfo.table.name + ": Post " + r.length + " Datensätze");
+            }
             return h.Helpers.qSequential(r, function (item) {
                 return _this.postDataToServer(dataModelSync, item);
             });
