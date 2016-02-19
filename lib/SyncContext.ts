@@ -436,11 +436,21 @@ export class SyncContext {
                     return this.updateClientIds(dataModelSync);
                 });
         } else if (item.ChangeType == 1) {
+            var dataModelSync = this.getDataModelSync(dataModel);
+
+            var selectOptions = {
+                where: [dataModelSync.syncOptions.serverPrimaryKey.name, item.Key]
+            };
+                            
             return dataModel
-                .selectById(item.Key)
-                .then((r): q.Promise<any> => {
-                    if (r) {
-                        return dataModel.delete(r);
+                .select(selectOptions)
+                .then((r: any[]): q.Promise<any> => {
+                    if (r && r.length > 0) {
+                        r.forEach((item) => {
+                            item.__IsDeleted = true;
+                        });
+
+                        return this.saveData(dataModelSync, r);
                     } else {
                         return q.resolve(true);
                     }

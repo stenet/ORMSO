@@ -385,11 +385,18 @@ var SyncContext = (function () {
             });
         }
         else if (item.ChangeType == 1) {
+            var dataModelSync = this.getDataModelSync(dataModel);
+            var selectOptions = {
+                where: [dataModelSync.syncOptions.serverPrimaryKey.name, item.Key]
+            };
             return dataModel
-                .selectById(item.Key)
+                .select(selectOptions)
                 .then(function (r) {
-                if (r) {
-                    return dataModel.delete(r);
+                if (r && r.length > 0) {
+                    r.forEach(function (item) {
+                        item.__IsDeleted = true;
+                    });
+                    return _this.saveData(dataModelSync, r);
                 }
                 else {
                     return q.resolve(true);
