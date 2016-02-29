@@ -626,7 +626,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             } else if (elements.length == 3) {
                 if (elements[2] === "null" && elements[1] === "=") {
                     return fieldName + " is null";
-                } else if (elements[2] === "null" && elements[1] === "!=") {
+                } else if (elements[2] === "null" && (elements[1] === "!=" || elements[1] === "<>")) {
                     return fieldName + " is not null";
                 }
 
@@ -638,6 +638,8 @@ export class Sqlite3DataLayer implements IDataLayer {
                     case "<":
                     case "<=":
                         return fieldName + " " + elements[1] + " " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]);
+                    case "<>":
+                        return fieldName + " != " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]);
                     case "contains":
                         return fieldName + " like '%' || " + this.getSelectWhereParameter(tableInfo, elements[0], parameters, elements[2]) + " || '%'";
                     case "notcontains":
