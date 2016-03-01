@@ -1,8 +1,9 @@
-﻿import express = require("express");
+﻿"use strict";
+
+import express = require("express");
 import dl = require("./DataLayer");
 import dc = require("./DataContext");
 import sc = require("./SyncContext");
-import h = require("./helpers");
 import q = require("q");
 import moment = require("moment");
 

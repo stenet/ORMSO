@@ -1,3 +1,4 @@
+"use strict";
 var q = require("q");
 var Helpers = (function () {
     function Helpers() {
@@ -14,7 +15,7 @@ var Helpers = (function () {
         }, q.resolve(null));
     };
     Helpers.extend = function (origin, add) {
-        if (!add || typeof add !== 'object') {
+        if (!add || typeof add !== "object") {
             return origin;
         }
         var keys = Object.keys(add);

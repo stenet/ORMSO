@@ -1,4 +1,6 @@
-﻿import h = require("./helpers");
+﻿"use strict";
+
+import h = require("./helpers");
 import dl = require("./DataLayer");
 
 import q = require("q");

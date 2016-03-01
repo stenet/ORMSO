@@ -1,4 +1,6 @@
-﻿import http = require("http");
+﻿"use strict";
+
+import http = require("http");
 import q = require("q");
 
 export class Helpers {
@@ -15,7 +17,7 @@ export class Helpers {
         }, q.resolve(null));
     }
     static extend(origin: any, add: any): any {
-        if (!add || typeof add !== 'object') {
+        if (!add || typeof add !== "object") {
             return origin;
         }
 

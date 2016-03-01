@@ -1,4 +1,6 @@
-﻿import q = require("q");
+﻿"use strict";
+
+import q = require("q");
 import sqlite3 = require("sqlite3");
 import moment = require("moment");
 import h = require("./Helpers");
@@ -111,7 +113,7 @@ export interface IDataLayer {
     select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]>;
     /** Selects an item from the database by its id */
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any>;
-    /** Selects the count*/
+    /** Selects the count */
     selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number>;
 }
 export class Sqlite3DataLayer implements IDataLayer {
@@ -477,8 +479,6 @@ export class Sqlite3DataLayer implements IDataLayer {
     }
 
     private getColumnCreateStatement(column: IColumn): string {
-        var dataType: string;
-
         return column.name + " " + this.getDataType(column.dataType)
             + (column.isPrimaryKey === true ? " PRIMARY KEY" : "")
             + (column.isAutoIncrement === true ? " AUTOINCREMENT" : "");

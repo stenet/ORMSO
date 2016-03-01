@@ -1,4 +1,6 @@
-﻿import dl = require("./DataLayer");
+﻿"use strict";
+
+import dl = require("./DataLayer");
 import dc = require("./DataContext");
 import h = require("./helpers");
 import q = require("q");
@@ -19,7 +21,7 @@ var syncModel = ctx.createDataModel({
         { name: ColTable, dataType: dl.DataTypes.text },
         { name: "LastSync", dataType: dl.DataTypes.date }
     ]
-})
+});
 var syncLogModel = ctx.createDataModel({
     name: "sync_log_status",
     columns: [
@@ -27,7 +29,7 @@ var syncLogModel = ctx.createDataModel({
         { name: "LastId", dataType: dl.DataTypes.int },
         { name: "LastSync", dataType: dl.DataTypes.date }
     ]
-})
+});
 var finalizeThen = ctx.finalizeInitialize()
     .then((): q.Promise<any> => {
         return syncLogModel
@@ -43,6 +45,7 @@ var finalizeThen = ctx.finalizeInitialize()
     .catch((r): void => {
         console.log(r);
     });
+
 export interface IServerClientColumnMapping {
     columnServer: string;
     columnClient: string;
@@ -511,7 +514,7 @@ export class SyncContext {
             if (rows.length == 0) {
                 return q.resolve(true);
             } else {
-                return dataModelSync.dataModel.dataContext.dataLayer.commitTransaction();;
+                return dataModelSync.dataModel.dataContext.dataLayer.commitTransaction();
             }
         };
 
@@ -673,8 +676,7 @@ export class SyncContext {
 
             if (!column) {
                 q.reject("Column " + column + " not found");
-            }
-            else if (!column.relation) {
+            } else if (!column.relation) {
                 q.reject("Column " + column + " needs a relation");
             }
 
@@ -777,8 +779,7 @@ export class SyncContext {
 
             if (!column) {
                 q.reject("Column " + column + " not found");
-            }
-            else if (!column.relation) {
+            } else if (!column.relation) {
                 q.reject("Column " + column + " needs a relation");
             }
 

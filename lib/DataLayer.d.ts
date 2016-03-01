@@ -100,7 +100,7 @@ export interface IDataLayer {
     select(tableInfo: ITableInfo, selectOptions?: ISelectOptionsDataLayer): q.Promise<any[]>;
     /** Selects an item from the database by its id */
     selectById(tableInfo: ITableInfo, id: any): q.Promise<any>;
-    /** Selects the count*/
+    /** Selects the count */
     selectCount(tableInfo: ITableInfo, where?: any): q.Promise<number>;
 }
 export declare class Sqlite3DataLayer implements IDataLayer {

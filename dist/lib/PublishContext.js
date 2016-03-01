@@ -1,3 +1,4 @@
+"use strict";
 var express = require("express");
 var q = require("q");
 var moment = require("moment");
