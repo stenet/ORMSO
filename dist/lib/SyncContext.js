@@ -81,7 +81,7 @@ var SyncContext = (function () {
         if (!dataModelSync) {
             return;
         }
-        return this.saveSyncState(dataModelSync, new Date(1900, 1, 1));
+        return this.saveSyncState(dataModelSync, null);
     };
     SyncContext.prototype.isSyncActive = function () {
         return this._isSyncActive || this._isSyncActiveAll;
@@ -821,14 +821,24 @@ var SyncContext = (function () {
             .then(function (r) {
             if (r.length === 1) {
                 var item = r[0];
-                item[ColLastSync] = date;
-                return syncModel.update(item);
+                if (date) {
+                    item[ColLastSync] = date;
+                    return syncModel.update(item);
+                }
+                else {
+                    return syncModel.delete(item);
+                }
             }
             else {
-                var item = {};
-                item[ColTable] = dataModelSync.dataModel.tableInfo.table.name;
-                item[ColLastSync] = date;
-                return syncModel.insert(item);
+                if (date) {
+                    var item = {};
+                    item[ColTable] = dataModelSync.dataModel.tableInfo.table.name;
+                    item[ColLastSync] = date;
+                    return syncModel.insert(item);
+                }
+                else {
+                    return q.resolve(true);
+                }
             }
         });
     };

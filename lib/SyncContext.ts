@@ -120,7 +120,7 @@ export class SyncContext {
             return;
         }
 
-        return this.saveSyncState(dataModelSync, new Date(1900, 1, 1));
+        return this.saveSyncState(dataModelSync, null);
     }
 
     getCurrentServerDate: () => q.Promise<Date>;
@@ -925,15 +925,24 @@ export class SyncContext {
             .then((r): q.Promise<any> => {
                 if (r.length === 1) {
                     let item = r[0];
-                    item[ColLastSync] = date;
 
-                    return syncModel.update(item);
+                    if (date) {
+                        item[ColLastSync] = date;
+
+                        return syncModel.update(item);
+                    } else {
+                        return syncModel.delete(item);
+                    }
                 } else {
-                    let item = {};
-                    item[ColTable] = dataModelSync.dataModel.tableInfo.table.name;
-                    item[ColLastSync] = date;
+                    if (date) {
+                        let item = {};
+                        item[ColTable] = dataModelSync.dataModel.tableInfo.table.name;
+                        item[ColLastSync] = date;
 
-                    return syncModel.insert(item);
+                        return syncModel.insert(item);
+                    } else {
+                        return q.resolve(true);
+                    }
                 }
             })
     }
