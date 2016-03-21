@@ -1,3 +1,4 @@
+"use strict";
 var dl = require("./lib/DataLayer");
 var dc = require("./lib/DataContext");
 var sc = require("./lib/SyncContext");

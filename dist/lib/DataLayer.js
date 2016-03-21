@@ -485,7 +485,10 @@ var Sqlite3DataLayer = (function () {
                 throw Error("Invalid Filter " + JSON.stringify(where));
             }
             var fieldName = this.getSelectFieldName(tableInfo, elements[0]);
-            if (elements.length == 2) {
+            if (elements.length == 2 && typeof elements[0] == "string" && Array.isArray(elements[1])) {
+                return this.getWhereExists(tableInfo, elements[0], parameters, elements[1]);
+            }
+            else if (elements.length == 2) {
                 if (elements[1] === "null") {
                     return fieldName + " is null";
                 }
@@ -530,7 +533,7 @@ var Sqlite3DataLayer = (function () {
     };
     Sqlite3DataLayer.prototype.getSelectFieldName = function (tableInfo, columnName) {
         if (columnName.indexOf(".") < 0) {
-            return columnName;
+            return tableInfo.table.name + "." + columnName;
         }
         else {
             var columnNames = columnName.split(".");
@@ -573,6 +576,80 @@ var Sqlite3DataLayer = (function () {
             sql += ")";
             return sql;
         }
+    };
+    Sqlite3DataLayer.prototype.getWhereExists = function (tableInfo, columnName, parameters, where) {
+        var columnNames = columnName.split(".");
+        var relations = [];
+        for (var i = 0; i < columnNames.length; i++) {
+            var info;
+            if (i == 0) {
+                info = tableInfo;
+            }
+            else {
+                info = relations[i - 1].tableInfo;
+            }
+            var relationInfos = info.relationsToParent.filter(function (relation) {
+                return relation.childAssociationName === columnNames[i];
+            });
+            if (relationInfos.length != 1) {
+                relationInfos = info.relationsToChild.filter(function (relation) {
+                    return relation.parentAssociationName === columnNames[i];
+                });
+                if (relationInfos.length != 1) {
+                    throw Error("Relation for fieldname " + columnName + " does not exists");
+                }
+                else {
+                    relations.push({
+                        relationInfo: relationInfos[0],
+                        tableInfo: relationInfos[0].childTableInfo,
+                        toParent: false
+                    });
+                }
+            }
+            else {
+                relations.push({
+                    relationInfo: relationInfos[0],
+                    tableInfo: relationInfos[0].parentTableInfo,
+                    toParent: true
+                });
+            }
+        }
+        var sql = "";
+        sql += "exists (select null";
+        sql += " from ";
+        for (var i = 0; i < relations.length; i++) {
+            if (i > 0) {
+                sql += ", ";
+            }
+            sql += relations[i].tableInfo.table.name;
+        }
+        sql += " where ";
+        for (var i = 0; i < relations.length; i++) {
+            if (i > 0) {
+                sql += " and ";
+                sql += relations[i].relationInfo.parentTableInfo.table.name + "." + relations[i].relationInfo.parentPrimaryKey.name
+                    + " = "
+                    + relations[i].relationInfo.childTableInfo.table.name + "." + relations[i].relationInfo.childColumn.name;
+            }
+            else {
+                if (relations[i].toParent) {
+                    sql += relations[i].relationInfo.parentTableInfo.table.name + "." + relations[i].relationInfo.parentPrimaryKey.name
+                        + " = "
+                        + tableInfo.table.name + "." + relations[i].relationInfo.childColumn.name;
+                }
+                else {
+                    sql += relations[i].relationInfo.childTableInfo.table.name + "." + relations[i].relationInfo.childColumn.name
+                        + " = "
+                        + tableInfo.table.name + "." + tableInfo.primaryKey.name;
+                }
+            }
+        }
+        var subWhere = this.getSelectWhereComponent(relations[relations.length - 1].tableInfo, parameters, where);
+        if (subWhere) {
+            sql += " and " + subWhere;
+        }
+        sql += ")";
+        return sql;
     };
     Sqlite3DataLayer.prototype.validateBeforeUpdateToStore = function (table, item) {
         var _this = this;
@@ -658,6 +735,6 @@ var Sqlite3DataLayer = (function () {
         }
     };
     return Sqlite3DataLayer;
-})();
+}());
 exports.Sqlite3DataLayer = Sqlite3DataLayer;
 //# sourceMappingURL=DataLayer.js.map

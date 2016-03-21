@@ -88,6 +88,11 @@ export interface IExecuteNonQueryResult {
     changedRows: number;
     lastId: number;
 }
+interface IRelationExists {
+    relationInfo: IRelationInfo,
+    tableInfo: ITableInfo,
+    toParent: boolean
+}
 
 export interface IDataLayer {
     /** Validates the database schema and creates indexes and tables/column; does not remove columns (at least now) */
@@ -196,7 +201,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
         var key = tableInfo.table.name;
         var parameters = this.getColumns(table, true, false).map((column): any => item[column.name]);
-        
+
         if (!this._preparedStatements || !this._preparedStatements.insert[key]) {
             var statement = "insert into " + table.name + " ("
                 + this.getColumns(table, true, false).map((column): string => column.name).join(", ") + ")"
@@ -583,7 +588,7 @@ export class Sqlite3DataLayer implements IDataLayer {
                 if (result) {
                     return "(" + result + ")";
                 } else {
-                    return ""; 
+                    return "";
                 }
             } else if (Array.isArray(elements[1])) {
                 var result = elements.map((x): string => this.getSelectWhereComponent(tableInfo, parameters, x)).join(" and ");
@@ -598,7 +603,7 @@ export class Sqlite3DataLayer implements IDataLayer {
 
                 for (var index = 1; index < elements.length; index = index + 2) {
                     result += " " + elements[index]
-                    + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
+                        + " " + this.getSelectWhereComponent(tableInfo, parameters, elements[index + 1])
                 }
 
                 if (result) {
@@ -617,23 +622,7 @@ export class Sqlite3DataLayer implements IDataLayer {
             var fieldName = this.getSelectFieldName(tableInfo, elements[0]);
 
             if (elements.length == 2 && typeof elements[0] == "string" && Array.isArray(elements[1])) {
-                var relations = tableInfo.relationsToChild.filter(item => {
-                    return item.parentAssociationName == elements[0];
-                });
-
-                if (relations.length != 1) {
-                    throw Error("Invalid relation " + elements[0] + " > " + JSON.stringify(where));
-                }
-
-                var relation = relations[0];
-                var subWhere = this.getSelectWhereComponent(relation.childTableInfo, parameters, elements[1]);
-
-                return "exists (select null from "
-                    + relation.childTableInfo.table.name
-                    + " where "
-                    + relation.childTableInfo.table.name + "." + relation.childColumn.name + " = " + tableInfo.table.name + "." + tableInfo.primaryKey.name
-                    + (subWhere ? " and " + subWhere : "")
-                    + ")";
+                return this.getWhereExists(tableInfo, elements[0], parameters, elements[1]);
             } else if (elements.length == 2) {
                 if (elements[1] === "null") {
                     return fieldName + " is null";
@@ -682,7 +671,7 @@ export class Sqlite3DataLayer implements IDataLayer {
     }
     private getSelectFieldName(tableInfo: ITableInfo, columnName: string): string {
         if (columnName.indexOf(".") < 0) {
-            return columnName;
+            return tableInfo.table.name + "." + columnName;
         } else {
             var columnNames = columnName.split(".");
             var relations: IRelationInfo[] = [];
@@ -734,6 +723,88 @@ export class Sqlite3DataLayer implements IDataLayer {
 
             return sql;
         }
+    }
+    private getWhereExists(tableInfo: ITableInfo, columnName: string, parameters: any, where: any): string {
+        var columnNames = columnName.split(".");
+        var relations: IRelationExists[] = [];
+
+        for (var i = 0; i < columnNames.length; i++) {
+            var info: ITableInfo;
+
+            if (i == 0) {
+                info = tableInfo;
+            } else {
+                info = relations[i - 1].tableInfo;
+            }
+
+            var relationInfos = info.relationsToParent.filter((relation): boolean => {
+                return relation.childAssociationName === columnNames[i];
+            });
+
+            if (relationInfos.length != 1) {
+                relationInfos = info.relationsToChild.filter((relation): boolean => {
+                    return relation.parentAssociationName === columnNames[i];
+                });
+
+                if (relationInfos.length != 1) {
+                    throw Error("Relation for fieldname " + columnName + " does not exists");
+                } else {
+                    relations.push({
+                        relationInfo: relationInfos[0],
+                        tableInfo: relationInfos[0].childTableInfo,
+                        toParent: false
+                    });
+                }
+            } else {
+                relations.push({
+                    relationInfo: relationInfos[0],
+                    tableInfo: relationInfos[0].parentTableInfo,
+                    toParent: true
+                });
+            }
+        }
+
+        var sql = "";
+        sql += "exists (select null";
+        sql += " from ";
+
+        for (var i = 0; i < relations.length; i++) {
+            if (i > 0) {
+                sql += ", ";
+            }
+
+            sql += relations[i].tableInfo.table.name;
+        }
+
+        sql += " where ";
+
+        for (var i = 0; i < relations.length; i++) {
+            if (i > 0) {
+                sql += " and ";
+                sql += relations[i].relationInfo.parentTableInfo.table.name + "." + relations[i].relationInfo.parentPrimaryKey.name
+                    + " = "
+                    + relations[i].relationInfo.childTableInfo.table.name + "." + relations[i].relationInfo.childColumn.name;
+            } else {
+                if (relations[i].toParent) {
+                    sql += relations[i].relationInfo.parentTableInfo.table.name + "." + relations[i].relationInfo.parentPrimaryKey.name
+                        + " = "
+                        + tableInfo.table.name + "." + relations[i].relationInfo.childColumn.name;
+                } else {
+                    sql += relations[i].relationInfo.childTableInfo.table.name + "." + relations[i].relationInfo.childColumn.name
+                        + " = "
+                        + tableInfo.table.name + "." + tableInfo.primaryKey.name;
+                }
+            }
+        }
+
+        var subWhere = this.getSelectWhereComponent(relations[relations.length - 1].tableInfo, parameters, where);
+        if (subWhere) {
+            sql += " and " + subWhere;
+        }
+
+        sql += ")";
+
+        return sql;
     }
 
     private validateBeforeUpdateToStore(table: ITable, item: any): void {

@@ -871,6 +871,6 @@ var SyncContext = (function () {
         };
     };
     return SyncContext;
-})();
+}());
 exports.SyncContext = SyncContext;
 //# sourceMappingURL=SyncContext.js.map

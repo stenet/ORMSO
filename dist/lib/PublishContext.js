@@ -195,6 +195,6 @@ var PublishContext = (function () {
         });
     };
     return PublishContext;
-})();
+}());
 exports.PublishContext = PublishContext;
 //# sourceMappingURL=PublishContext.js.map

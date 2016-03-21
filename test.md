@@ -263,28 +263,73 @@ return tc.finalized
 });
 ```
 
-Testing child where with parameter.
+Testing child where with parameter 1.
 
 ```js
 return tc.finalized
     .then(function () {
     return tc.users.insertAndSelect({
-        UserName: "TestChildWhereWithParameter",
+        UserName: "TestChildWhereWithParameter1",
         FirstName: "Stefan",
         LastName: "Heim",
         Profiles: [
-            { IdProfile: null, Comment: "TestChildWhereWithParameter" }
+            { IdProfile: null, Comment: "TestChildWhereWithParameter1" }
         ]
     });
 })
     .then(function (r) {
     return tc.users.select({
-        where: [["Profiles", ["Comment", "TestChildWhereWithParameter"]]]
+        where: [["Profiles", ["Comment", "TestChildWhereWithParameter1"]]]
     });
 })
     .then(function (r) {
     var i = r;
     chai.assert.equal(i.length, 1);
+});
+```
+
+Testing child where with parameter 2.
+
+```js
+return tc.finalized
+    .then(function () {
+    return tc.profiles.insert({
+        Name: "TestChildWhereWithParameter2"
+    });
+})
+    .then(function (r) {
+    return tc.users.insertAndSelect({
+        UserName: "TestChildWhereWithParameter2",
+        FirstName: "Stefan",
+        LastName: "Heim",
+        Profiles: [
+            { IdProfile: r.Id, Comment: "TestChildWhereWithParameter2" }
+        ]
+    });
+})
+    .then(function (r) {
+    return tc.users.select({
+        where: [["Profiles", ["Profile.Name", "TestChildWhereWithParameter2"]]]
+    });
+})
+    .then(function (r) {
+    var i = r;
+    chai.assert.equal(i.length, 1);
+});
+```
+
+Testing child where with parameter 3.
+
+```js
+return tc.finalized
+    .then(function (r) {
+    return tc.usersToProfile.select({
+        where: [["Profile.Users", []]]
+    });
+})
+    .then(function (r) {
+    var i = r;
+    chai.assert.notEqual(i.length, 0);
 });
 ```
 

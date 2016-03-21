@@ -122,6 +122,7 @@ export declare class Sqlite3DataLayer implements IDataLayer {
     private getSelectWhereComponent(tableInfo, parameters, where);
     private getSelectWhereParameter(tableInfo, columnName, parameters, val);
     private getSelectFieldName(tableInfo, columnName);
+    private getWhereExists(tableInfo, columnName, parameters, where);
     private validateBeforeUpdateToStore(table, item);
     private validateAfterReadFromStore(table, item);
     private convertToStorage(table, column, val);

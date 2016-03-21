@@ -104,7 +104,7 @@ var DataContext = (function () {
         }
     };
     return DataContext;
-})();
+}());
 exports.DataContext = DataContext;
 var DataModel = (function () {
     function DataModel(dataContext, tableInfo) {
@@ -529,6 +529,6 @@ var DataModel = (function () {
         });
     };
     return DataModel;
-})();
+}());
 exports.DataModel = DataModel;
 //# sourceMappingURL=DataContext.js.map

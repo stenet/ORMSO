@@ -55,6 +55,6 @@ var Helpers = (function () {
         };
     };
     return Helpers;
-})();
+}());
 exports.Helpers = Helpers;
 //# sourceMappingURL=Helpers.js.map
