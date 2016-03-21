@@ -1,6 +1,6 @@
 {
   "name": "ormso",
-  "version": "0.0.144",
+  "version": "0.0.145",
   "description": "JavaScript object mapper to database (currently Sqlite3), sync with other database and publish for clients.",
   "main": "dist/index.js",
   "author": {
@@ -21,6 +21,7 @@
     "mocha": "^2.3.3",
     "moment": "^2.10.6",
     "morgan": "^1.6.1",
+    "ntsc": "^0.2.0",
     "q": "^1.4.1",
     "request": "^2.65.0",
     "serve-favicon": "^2.3.0",
@@ -29,7 +30,7 @@
   "scripts": {
     "test": "mocha",
     "testoutput": "mocha --reporter markdown > test.md",
-    "build": "npm test && npm run testoutput && ntsc",
+    "build": "npm test && npm run testoutput",
     "go": "npm run build && npm publish"
   }
 }

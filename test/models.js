@@ -31,7 +31,8 @@ var usersToProfile = dataCtx.createDataModel({
     name: "users_to_profile",
     columns: [
         { name: "IdUser", dataType: o.DataLayers.DataTypes.text, relation: { parentTable: users.tableInfo.table, parentAssociationName: "Profiles", childAssociationName: "User" } },
-        { name: "IdProfile", dataType: o.DataLayers.DataTypes.text, relation: { parentTable: profiles.tableInfo.table, parentAssociationName: "Users", childAssociationName: "Profile" } }
+        { name: "IdProfile", dataType: o.DataLayers.DataTypes.text, relation: { parentTable: profiles.tableInfo.table, parentAssociationName: "Users", childAssociationName: "Profile" } },
+        { name: "Comment", dataType: o.DataLayers.DataTypes.text }
     ]
 }, base);
 var finalized = dataCtx.finalizeInitialize();

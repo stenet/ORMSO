@@ -193,5 +193,49 @@ describe("Data Model (Functions)", function () {
             chai.assert.equal(i.length, 1);
         });
     });
+    it("Testing child where without parameter", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "TestChildWhereWithoutParameter",
+                FirstName: "Stefan",
+                LastName: "Heim",
+                Profiles: [
+                    { IdProfile: null, Comment: "TestChildWhereWithoutParameter" }
+                ]
+            });
+        })
+            .then(function (r) {
+            return tc.users.select({
+                where: [["UserName", "TestChildWhereWithoutParameter"], ["Profiles", []]]
+            });
+        })
+            .then(function (r) {
+            var i = r;
+            chai.assert.equal(i.length, 1);
+        });
+    });
+    it("Testing child where with parameter", function () {
+        return tc.finalized
+            .then(function () {
+            return tc.users.insertAndSelect({
+                UserName: "TestChildWhereWithParameter",
+                FirstName: "Stefan",
+                LastName: "Heim",
+                Profiles: [
+                    { IdProfile: null, Comment: "TestChildWhereWithParameter" }
+                ]
+            });
+        })
+            .then(function (r) {
+            return tc.users.select({
+                where: [["Profiles", ["Comment", "TestChildWhereWithParameter"]]]
+            });
+        })
+            .then(function (r) {
+            var i = r;
+            chai.assert.equal(i.length, 1);
+        });
+    });
 });
 //# sourceMappingURL=test.js.map

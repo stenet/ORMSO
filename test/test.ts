@@ -207,4 +207,51 @@ describe("Data Model (Functions)", () => {
                 chai.assert.equal(i.length, 1);
             });
     });
+    it("Testing child where without parameter", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "TestChildWhereWithoutParameter",
+                    FirstName: "Stefan",
+                    LastName: "Heim",
+                    Profiles: [
+                        { IdProfile: null, Comment: "TestChildWhereWithoutParameter" }
+                    ]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.select({
+                    where: [["UserName", "TestChildWhereWithoutParameter"], ["Profiles", []]]
+                });
+            })
+            .then((r): void => {
+                var i: any[] = r;
+
+                chai.assert.equal(i.length, 1);
+            });
+    })
+
+    it("Testing child where with parameter", () => {
+        return tc.finalized
+            .then((): q.Promise<any> => {
+                return tc.users.insertAndSelect({
+                    UserName: "TestChildWhereWithParameter",
+                    FirstName: "Stefan",
+                    LastName: "Heim",
+                    Profiles: [
+                        { IdProfile: null, Comment: "TestChildWhereWithParameter" }
+                    ]
+                });
+            })
+            .then((r): q.Promise<any> => {
+                return tc.users.select({
+                    where: [["Profiles", ["Comment", "TestChildWhereWithParameter"]]]
+                });
+            })
+            .then((r): void => {
+                var i: any[] = r;
+
+                chai.assert.equal(i.length, 1);
+            });
+    })
 });

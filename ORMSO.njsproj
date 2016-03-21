@@ -45,6 +45,7 @@
     <Content Include="README.md" />
     <TypeScriptCompile Include="lib\PublishContext.ts" />
     <TypeScriptCompile Include="lib\SyncContext.ts" />
+    <TypeScriptCompile Include="references.d.ts" />
     <TypeScriptCompile Include="test\test.ts" />
     <TypeScriptCompile Include="test\models.ts" />
     <TypeScriptCompile Include="typings\angularjs\angular-sanitize.d.ts" />
