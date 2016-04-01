@@ -835,8 +835,20 @@ export class SyncContext {
             : "POST";
 
         if (isDeleted && !data[dataModelSync.syncOptions.serverPrimaryKey.name]) {
-            def.resolve(true);
-            return;
+            data[ColDoSync] = false;
+            data._isSyncToServer = true;
+
+            dataModelSync
+                .dataModel
+                .update(data)
+                .then((): void => {
+                    def.resolve(true);
+                })
+                .catch((r): void => {
+                    def.reject(r);
+                });
+
+            return def.promise;
         }
 
         var url = isDeleted

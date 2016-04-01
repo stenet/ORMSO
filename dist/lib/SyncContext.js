@@ -743,8 +743,18 @@ var SyncContext = (function () {
             ? "DELETE"
             : "POST";
         if (isDeleted && !data[dataModelSync.syncOptions.serverPrimaryKey.name]) {
-            def.resolve(true);
-            return;
+            data[ColDoSync] = false;
+            data._isSyncToServer = true;
+            dataModelSync
+                .dataModel
+                .update(data)
+                .then(function () {
+                def.resolve(true);
+            })
+                .catch(function (r) {
+                def.reject(r);
+            });
+            return def.promise;
         }
         var url = isDeleted
             ? dataModelSync.syncOptions.postUrl + "/" + data[dataModelSync.syncOptions.serverPrimaryKey.name]
