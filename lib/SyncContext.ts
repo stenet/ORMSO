@@ -967,8 +967,12 @@ export class SyncContext {
                 args.item[ColDoSync] = true;
             }
 
-            if (args.item.__IsDeleted) {
-                args.item[ColMarkedAsDeleted] = true;
+            if (args.item.__IsDeleted != undefined) {
+                if (args.item.__IsDeleted) {
+                    args.item[ColMarkedAsDeleted] = true;
+                } else {
+                    args.item[ColMarkedAsDeleted] = false;
+                }
             }
         }
 

@@ -860,8 +860,13 @@ var SyncContext = (function () {
             else {
                 args.item[ColDoSync] = true;
             }
-            if (args.item.__IsDeleted) {
-                args.item[ColMarkedAsDeleted] = true;
+            if (args.item.__IsDeleted != undefined) {
+                if (args.item.__IsDeleted) {
+                    args.item[ColMarkedAsDeleted] = true;
+                }
+                else {
+                    args.item[ColMarkedAsDeleted] = false;
+                }
             }
         }
         return this.onSaving(dataModelSync, args.item);
